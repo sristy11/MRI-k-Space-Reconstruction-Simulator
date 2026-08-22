@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>K-SPACE // undersampling console</title>
+<link rel="stylesheet" href="home.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<div class="console">
+
+  <!-- ============ HEADER ============ -->
+  <header class="console__header">
+    <div class="brand">
+      <span class="brand__mark" aria-hidden="true">
+        <svg viewBox="0 0 32 32" width="26" height="26">
+          <circle cx="16" cy="16" r="14" fill="none" stroke="currentColor" stroke-width="1.4"/>
+          <line x1="16" y1="2" x2="16" y2="30" stroke="currentColor" stroke-width="1" opacity="0.5"/>
+          <line x1="2" y1="16" x2="30" y2="16" stroke="currentColor" stroke-width="1" opacity="0.5"/>
+          <line x1="5.5" y1="5.5" x2="26.5" y2="26.5" stroke="currentColor" stroke-width="1" opacity="0.3"/>
+          <line x1="26.5" y1="5.5" x2="5.5" y2="26.5" stroke="currentColor" stroke-width="1" opacity="0.3"/>
+        </svg>
+      </span>
+      <div>
+        <h1 class="brand__title">K-SPACE</h1>
+        <p class="brand__subtitle">undersampling &amp; reconstruction console</p>
+      </div>
+    </div>
+    <div class="header__status" id="statusLine">
+      <span class="status__dot" id="statusDot" aria-hidden="true"></span>
+      <span id="statusText">awaiting image</span>
+    </div>
+  </header>
+
+  <!-- ============ MAIN GRID ============ -->
+  <main class="console__body">
+
+    <!-- ---------- LEFT: control rail ---------- -->
+    <aside class="rail">
+
+      <section class="panel">
+        <h2 class="panel__eyebrow">01 — input</h2>
+        <label class="dropzone" id="dropzone" for="fileInput" tabindex="0">
+          <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+            <path d="M12 16V4M12 4L7 9M12 4L17 9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+          </svg>
+          <span class="dropzone__label">Load an image</span>
+          <span class="dropzone__hint">click, or drop a file — resized to 256×256</span>
+        </label>
+        <input type="file" id="fileInput" accept="image/*" hidden>
+      </section>
+
+      <section class="panel">
+        <h2 class="panel__eyebrow">02 — sampling pattern</h2>
+
+        <div class="field">
+          <span class="field__label">trajectory</span>
+          <div class="segmented" role="radiogroup" aria-label="sampling trajectory">
+            <button type="button" class="segmented__option is-active" data-pattern="cartesian" role="radio" aria-checked="true">cartesian</button>
+            <button type="button" class="segmented__option" data-pattern="radial" role="radio" aria-checked="false">radial</button>
+          </div>
+        </div>
+
+        <div class="field">
+          <div class="field__row">
+            <span class="field__label" id="factorLabel">acceleration — ×4</span>
+            <span class="field__value" id="factorValue">4</span>
+          </div>
+          <input type="range" id="factorSlider" min="2" max="12" step="1" value="4" class="slider">
+        </div>
+
+        <div class="field" id="acsField">
+          <div class="field__row">
+            <span class="field__label">autocalibration lines / spokes</span>
+            <span class="field__value" id="acsValue">12</span>
+          </div>
+          <input type="range" id="acsSlider" min="0" max="40" step="2" value="12" class="slider">
+        </div>
+      </section>
+
+      <section class="panel panel--actions">
+        <h2 class="panel__eyebrow">03 — run</h2>
+        <button type="button" class="btn btn--primary" id="btnTransform">
+          <span>forward FFT</span>
+        </button>
+        <button type="button" class="btn" id="btnUndersample">
+          <span>apply undersampling mask</span>
+        </button>
+        <button type="button" class="btn btn--accent" id="btnReconstruct">
+          <span>inverse FFT — reconstruct</span>
+        </button>
+        <button type="button" class="btn btn--ghost" id="btnReset">
+          <span>reset session</span>
+        </button>
+      </section>
+
+    </aside>
+
+    <!-- ---------- CENTER: viewport grid ---------- -->
+    <section class="viewport-grid">
+
+      <figure class="viewcell">
+        <figcaption class="viewcell__label"><span class="viewcell__index">A</span>source image</figcaption>
+        <div class="viewcell__frame">
+          <canvas id="canvasOriginal" width="256" height="256"></canvas>
+          <div class="viewcell__empty" id="emptyOriginal">no image loaded</div>
+        </div>
+      </figure>
+
+      <figure class="viewcell">
+        <figcaption class="viewcell__label"><span class="viewcell__index">B</span>k-space — full sampling</figcaption>
+        <div class="viewcell__frame">
+          <canvas id="canvasKspaceFull" width="256" height="256"></canvas>
+          <div class="viewcell__empty" id="emptyKspaceFull">run forward FFT</div>
+        </div>
+      </figure>
+
+      <figure class="viewcell">
+        <figcaption class="viewcell__label"><span class="viewcell__index">C</span>k-space — undersampled</figcaption>
+        <div class="viewcell__frame">
+          <canvas id="canvasKspaceUnder" width="256" height="256"></canvas>
+          <div class="viewcell__empty" id="emptyKspaceUnder">apply a mask</div>
+        </div>
+      </figure>
+
+      <figure class="viewcell">
+        <figcaption class="viewcell__label"><span class="viewcell__index">D</span>sampling mask</figcaption>
+        <div class="viewcell__frame">
+          <canvas id="canvasMask" width="256" height="256"></canvas>
+          <div class="viewcell__empty" id="emptyMask">apply a mask</div>
+        </div>
+      </figure>
+
+      <figure class="viewcell">
+        <figcaption class="viewcell__label"><span class="viewcell__index">E</span>reconstructed image</figcaption>
+        <div class="viewcell__frame">
+          <canvas id="canvasRecon" width="256" height="256"></canvas>
+          <div class="viewcell__empty" id="emptyRecon">reconstruct to view</div>
+        </div>
+      </figure>
+
+      <figure class="viewcell">
+        <figcaption class="viewcell__label"><span class="viewcell__index">F</span>error map |orig − recon|</figcaption>
+        <div class="viewcell__frame">
+          <canvas id="canvasError" width="256" height="256"></canvas>
+          <div class="viewcell__empty" id="emptyError">reconstruct to view</div>
+        </div>
+      </figure>
+
+    </section>
+
+    <!-- ---------- RIGHT: readout rail ---------- -->
+    <aside class="rail rail--readout">
+      <section class="panel">
+        <h2 class="panel__eyebrow">readout</h2>
+        <dl class="metrics">
+          <div class="metrics__row">
+            <dt>sampling density</dt>
+            <dd id="metricDensity">—</dd>
+          </div>
+          <div class="metrics__row">
+            <dt>k-space points kept</dt>
+            <dd id="metricPoints">—</dd>
+          </div>
+          <div class="metrics__row metrics__row--highlight">
+            <dt>MSE</dt>
+            <dd id="metricMSE">—</dd>
+          </div>
+          <div class="metrics__row metrics__row--highlight">
+            <dt>PSNR</dt>
+            <dd id="metricPSNR">—</dd>
+          </div>
+          <div class="metrics__row">
+            <dt>NRMSE</dt>
+            <dd id="metricNRMSE">—</dd>
+          </div>
+        </dl>
+      </section>
+
+      <section class="panel panel--log">
+        <h2 class="panel__eyebrow">log</h2>
+        <ol class="log" id="logList" aria-live="polite">
+          <li class="log__entry log__entry--muted">console idle. load an image to begin.</li>
+        </ol>
+      </section>
+    </aside>
+
+  </main>
+
+  <footer class="console__footer">
+    <span>all computation runs client-side — no data leaves this page</span>
+    <span class="console__footer-sig">grid resolution 256×256 · radix-2 FFT</span>
+  </footer>
+
+</div>
+
+</body>
+</html>
