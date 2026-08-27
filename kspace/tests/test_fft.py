@@ -5,34 +5,48 @@ from kspace_core.fft import (
     kspace_to_image,
     log_magnitude_spectrum,
 )
+from kspace_core.sampling.cartesian import cartesian_mask
+from kspace_core.sampling.radial import radial_mask
+from kspace_core.sampling.random import random_mask
+from kspace_core.metrics import mse, psnr, nrmse
 
-# 1. Load a test PNG (put any photo at this path first)
 image = load_image_as_array("test_image.png")
-
-# 2. Forward transform: image -> k-space
 kspace = image_to_kspace(image)
 
-# 3. Inverse transform: k-space -> image (should match original)
-reconstructed = kspace_to_image(kspace)
+acceleration = 4
 
-# 4. Sanity check: how close is the round trip?
-error = image - reconstructed
-print("Max abs error:", error.max())
-print("Mean abs error:", error.mean())
+masks = {
+    "Cartesian": cartesian_mask(kspace.shape, acceleration=acceleration),
+    "Radial": radial_mask(kspace.shape, acceleration=acceleration),
+    "Random": random_mask(kspace.shape, acceleration=acceleration, seed=42),
+}
 
-# 5. Visualize all three
-fig, axes = plt.subplots(1, 3, figsize=(12, 4))
-axes[0].imshow(image, cmap="gray")
-axes[0].set_title("Original")
+fig, axes = plt.subplots(3, 4, figsize=(16, 12))
 
-axes[1].imshow(log_magnitude_spectrum(kspace), cmap="gray")
-axes[1].set_title("K-space (log magnitude)")
+for i, (name, mask) in enumerate(masks.items()):
+    undersampled_kspace = kspace * mask
+    recon = kspace_to_image(undersampled_kspace)
 
-axes[2].imshow(reconstructed, cmap="gray")
-axes[2].set_title("Reconstructed")
+    err_mse = mse(image, recon)
+    err_psnr = psnr(image, recon)
+    err_nrmse = nrmse(image, recon)
 
-for ax in axes:
-    ax.axis("off")
+    axes[i, 0].imshow(mask, cmap="gray")
+    axes[i, 0].set_title(f"{name} Mask")
+
+    axes[i, 1].imshow(log_magnitude_spectrum(undersampled_kspace), cmap="gray")
+    axes[i, 1].set_title(f"{name} K-space")
+
+    axes[i, 2].imshow(recon, cmap="gray")
+    axes[i, 2].set_title(f"{name} Recon")
+
+    axes[i, 3].imshow(abs(image - recon), cmap="hot")
+    axes[i, 3].set_title(f"Error (PSNR={err_psnr:.1f}dB)")
+
+    print(f"{name}: MSE={err_mse:.5f}  PSNR={err_psnr:.2f}dB  NRMSE={err_nrmse:.4f}")
+
+    for j in range(4):
+        axes[i, j].axis("off")
 
 plt.tight_layout()
 plt.show()
