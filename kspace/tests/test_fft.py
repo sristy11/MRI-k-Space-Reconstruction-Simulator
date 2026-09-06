@@ -1,16 +1,20 @@
 import matplotlib.pyplot as plt
-from kspace_core.fft import (
+from kspace.kspace_core.fft import (
     load_image_as_array,
     image_to_kspace,
     kspace_to_image,
     log_magnitude_spectrum,
 )
-from kspace_core.sampling.cartesian import cartesian_mask
-from kspace_core.sampling.radial import radial_mask
-from kspace_core.sampling.random import random_mask
-from kspace_core.metrics import mse, psnr, nrmse
+from kspace.kspace_core.sampling.cartesian import cartesian_mask
+from kspace.kspace_core.sampling.radial import radial_mask
+from kspace.kspace_core.sampling.random import random_mask
+from kspace.kspace_core.metrics import mse, psnr, nrmse
+from pathlib import Path
 
-image = load_image_as_array("test_image.png")
+image_path = Path(__file__).parent / "test_image.png"
+
+image = load_image_as_array(str(image_path))
+
 kspace = image_to_kspace(image)
 
 acceleration = 4

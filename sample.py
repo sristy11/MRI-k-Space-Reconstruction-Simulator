@@ -1,6 +1,12 @@
 import h5py
 
-f = h5py.File("file1000007.h5", "r")
+with h5py.File("kspace/data/datasets/file1000007.h5", "r") as f:
 
-print(list(f.keys()))
-print(type(f['ismrmrd_header']))
+    def print_structure(name, obj):
+        print(name, "->", obj)
+
+    # Print the complete structure of the HDF5 file
+    f.visititems(print_structure)
+
+    # Print only the top-level keys
+    print("Top-level keys:", list(f.keys()))

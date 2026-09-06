@@ -1,3 +1,4 @@
 kspace/data/datasets/
 __pycache__/
 *.pyc
+uploads/

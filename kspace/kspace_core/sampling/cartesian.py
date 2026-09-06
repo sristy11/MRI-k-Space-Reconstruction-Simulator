@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def cartesian_mask(shape, acceleration=4, center_fraction=0.08):
+def cartesian_mask(shape, acceleration=4, center_fraction=0.02):
     """
     Cartesian undersampling: keep a fully-sampled center band (low frequencies,
     which carry most image energy/contrast) and skip every Nth line elsewhere
