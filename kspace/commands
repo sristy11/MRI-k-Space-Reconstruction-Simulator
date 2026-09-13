@@ -1,1 +1,2 @@
-py -m tests.test_fft
+python -m kspace.tests.test_reconstruct
+python -m uvicorn app:app --reload

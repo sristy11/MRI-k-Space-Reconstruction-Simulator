@@ -1,3 +1,6 @@
+// Shared state read by controls.js — which uploaded image the pipeline should use.
+window.APP_STATE = { filename: null };
+
 const fileInput = document.getElementById("fileInput");
 const canvasOriginal = document.getElementById("canvasOriginal");
 const emptyOriginal = document.getElementById("emptyOriginal");
@@ -79,6 +82,8 @@ async function uploadImage(file) {
         console.log("Server response:", data);
 
         statusText.textContent = "image loaded";
+
+        window.APP_STATE.filename = data.filename;
 
         addLog(`uploaded: ${data.filename}`);
 

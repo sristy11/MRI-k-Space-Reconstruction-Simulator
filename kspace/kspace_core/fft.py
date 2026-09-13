@@ -22,7 +22,19 @@ def kspace_to_image(kspace_array):
     return reconstruct(kspace_array, mask=None, shifted=True)
 
 
-def log_magnitude_spectrum(kspace_array):
-    """Log-scaled magnitude, for visualizing k-space (raw values span huge range)."""
+def log_magnitude_spectrum(kspace_array, normalize=True):
+    """Log-scaled magnitude, for visualizing k-space (raw values span huge range).
+
+    Even after log1p, the DC (center) component can still be an order of
+    magnitude larger than every other point, which crushes everything else
+    to near-black under a plain imshow(). If normalize=True, we additionally
+    rescale by the 99.5th percentile (instead of the true max) so the DC
+    spike saturates to white and weaker surrounding signal stays visible.
+    """
     magnitude = np.abs(kspace_array)
-    return np.log1p(magnitude)  # log1p avoids log(0) issues
+    log_mag = np.log1p(magnitude)
+    if normalize:
+        vmax = np.percentile(log_mag, 99.5)
+        if vmax > 0:
+            log_mag = np.clip(log_mag / vmax, 0, 1)
+    return log_mag

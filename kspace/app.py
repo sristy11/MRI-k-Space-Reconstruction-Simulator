@@ -3,6 +3,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from routes import upload
+from routes import pipeline
 
 app = FastAPI(
     title="MRI k-Space Reconstruction Simulator"
@@ -19,11 +20,12 @@ templates = Jinja2Templates(
 )
 
 app.include_router(upload.router)
+app.include_router(pipeline.router)
 
 
 @app.get("/")
 async def home(request: Request):
-    return templates.TemplateResponse(
-        "index.html",
-        {"request": request}
-    )
+   return templates.TemplateResponse(
+   request=request,
+   name="index.html"
+   )

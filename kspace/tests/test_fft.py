@@ -25,7 +25,7 @@ masks = {
     "Random": random_mask(kspace.shape, acceleration=acceleration, seed=42),
 }
 
-fig, axes = plt.subplots(3, 4, figsize=(16, 12))
+fig, axes = plt.subplots(3, 5, figsize=(20, 12))
 
 for i, (name, mask) in enumerate(masks.items()):
     undersampled_kspace = kspace * mask
@@ -35,21 +35,24 @@ for i, (name, mask) in enumerate(masks.items()):
     err_psnr = psnr(image, recon)
     err_nrmse = nrmse(image, recon)
 
-    axes[i, 0].imshow(mask, cmap="gray")
-    axes[i, 0].set_title(f"{name} Mask")
+    axes[i, 0].imshow(image, cmap="gray")
+    axes[i, 0].set_title("Ground Truth (Source)")
 
-    axes[i, 1].imshow(log_magnitude_spectrum(undersampled_kspace), cmap="gray")
-    axes[i, 1].set_title(f"{name} K-space")
+    axes[i, 1].imshow(mask, cmap="gray")
+    axes[i, 1].set_title(f"{name} Mask")
 
-    axes[i, 2].imshow(recon, cmap="gray")
-    axes[i, 2].set_title(f"{name} Recon")
+    axes[i, 2].imshow(log_magnitude_spectrum(undersampled_kspace), cmap="gray", vmin=0, vmax=1)
+    axes[i, 2].set_title(f"{name} K-space")
 
-    axes[i, 3].imshow(abs(image - recon), cmap="hot")
-    axes[i, 3].set_title(f"Error (PSNR={err_psnr:.1f}dB)")
+    axes[i, 3].imshow(recon, cmap="gray")
+    axes[i, 3].set_title(f"{name} Recon")
+
+    axes[i, 4].imshow(abs(image - recon), cmap="hot")
+    axes[i, 4].set_title(f"Error (PSNR={err_psnr:.1f}dB)")
 
     print(f"{name}: MSE={err_mse:.5f}  PSNR={err_psnr:.2f}dB  NRMSE={err_nrmse:.4f}")
 
-    for j in range(4):
+    for j in range(5):
         axes[i, j].axis("off")
 
 plt.tight_layout()

@@ -35,7 +35,7 @@ for i, (name, mask) in enumerate(masks.items()):
     axes[i, 0].imshow(mask, cmap="gray")
     axes[i, 0].set_title(f"{name} Mask")
 
-    axes[i, 1].imshow(log_magnitude_spectrum(undersampled_kspace[2]), cmap="gray")
+    axes[i, 1].imshow(log_magnitude_spectrum(undersampled_kspace[2]), cmap="gray", vmin=0, vmax=1)
     axes[i, 1].set_title(f"{name} K-space")
 
     axes[i, 2].imshow(recon)
@@ -51,6 +51,3 @@ for i, (name, mask) in enumerate(masks.items()):
 
 plt.tight_layout()
 plt.show()
-
-
-
