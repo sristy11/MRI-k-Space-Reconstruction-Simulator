@@ -3,24 +3,25 @@ import numpy as np
 
 def cartesian_mask(shape, acceleration=4, center_fraction=0.02):
     """
-    Cartesian undersampling: keep a fully-sampled center band (low frequencies,
-    which carry most image energy/contrast) and skip every Nth line elsewhere
-    (high frequencies, which carry fine detail/edges).
+    Cartesian undersampling mask.
 
-    shape: (rows, cols) of the k-space array
-    acceleration: e.g. 4 means keep ~1/4 of the outer lines
-    center_fraction: fraction of rows in the center to always keep fully
+    Keeps the center of k-space fully sampled and
+    samples fewer lines outside the center.
     """
     rows, cols = shape
+
+    # Start with everything removed
     mask = np.zeros((rows, cols), dtype=np.float64)
 
-    # Always keep a fully-sampled center band (this preserves overall contrast/shape)
+    # Find the center region
     center_lines = int(rows * center_fraction)
     center_start = rows // 2 - center_lines // 2
     center_end = center_start + center_lines
+
+    # Keep all points in the center lines
     mask[center_start:center_end, :] = 1
 
-    # Outside the center band, keep every Nth line based on acceleration factor
+    # Keep every Nth line outside the center
     for row in range(rows):
         if row < center_start or row >= center_end:
             if row % acceleration == 0:
@@ -31,4 +32,6 @@ def cartesian_mask(shape, acceleration=4, center_fraction=0.02):
 
 def apply_mask(kspace_array, mask):
     """Zero out k-space wherever the mask is 0."""
+
+    # 1 keeps the value, 0 removes it
     return kspace_array * mask

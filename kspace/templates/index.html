@@ -43,15 +43,44 @@
 
       <section class="panel">
         <h2 class="panel__eyebrow">01 — input</h2>
-        <label class="dropzone" id="dropzone" for="fileInput" tabindex="0">
-          <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
-            <path d="M12 16V4M12 4L7 9M12 4L17 9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
-          </svg>
-          <span class="dropzone__label">Load an image</span>
-          <span class="dropzone__hint">click, or drop a file — resized to 256×256</span>
-        </label>
-        <input type="file" id="fileInput" accept="image/*" hidden>
+
+        <div class="segmented" role="radiogroup" aria-label="input source" style="margin-bottom: 12px;">
+          <button type="button" class="segmented__option is-active" data-source="upload" role="radio" aria-checked="true">upload photo</button>
+          <button type="button" class="segmented__option" data-source="dataset" role="radio" aria-checked="false">select dataset</button>
+        </div>
+
+        <div id="uploadSourceBlock">
+          <label class="dropzone" id="dropzone" for="fileInput" tabindex="0">
+            <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+              <path d="M12 16V4M12 4L7 9M12 4L17 9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+            </svg>
+            <span class="dropzone__label">Load an image</span>
+            <span class="dropzone__hint">click, or drop a file — resized to 256×256</span>
+          </label>
+          <input type="file" id="fileInput" accept="image/*" hidden>
+        </div>
+
+        <div id="datasetSourceBlock" style="display: none;">
+          <div class="field">
+            <span class="field__label">dataset scan</span>
+            <select id="datasetSelect" class="slider" style="width: 100%; margin-top: 6px;">
+              <option value="">loading datasets…</option>
+            </select>
+          </div>
+
+          <div class="field" id="sliceField" style="display: none;">
+            <div class="field__row">
+              <span class="field__label">slice</span>
+              <span class="field__value" id="sliceValue">—</span>
+            </div>
+            <input type="range" id="sliceSlider" min="0" max="0" step="1" value="0" class="slider">
+          </div>
+
+          <button type="button" class="btn" id="btnLoadDataset" style="margin-top: 8px;">
+            <span>load dataset slice</span>
+          </button>
+        </div>
       </section>
 
       <section class="panel">

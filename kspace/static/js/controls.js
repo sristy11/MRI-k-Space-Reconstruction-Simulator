@@ -78,12 +78,23 @@ acsSlider.addEventListener("input", () => {
 
 // ---- helpers ----
 function requireImage() {
-    if (!window.APP_STATE || !window.APP_STATE.filename) {
-        statusTextEl.textContent = "load an image first";
-        addLog("error: no image uploaded yet");
+    const state = window.APP_STATE;
+    const hasSource = state && ((state.source === "upload" && state.filename) ||
+                                 (state.source === "dataset" && state.dataset));
+    if (!hasSource) {
+        statusTextEl.textContent = "load an image or dataset slice first";
+        addLog("error: no source loaded yet");
         return false;
     }
     return true;
+}
+
+function sourcePayload() {
+    const state = window.APP_STATE;
+    if (state.source === "dataset") {
+        return { source: "dataset", dataset: state.dataset, slice_index: state.sliceIndex };
+    }
+    return { source: "upload", filename: state.filename };
 }
 
 async function postJSON(url, body) {
@@ -114,9 +125,7 @@ btnTransform.addEventListener("click", async () => {
     statusTextEl.textContent = "running forward FFT...";
 
     try {
-        const data = await postJSON("/pipeline/fft", {
-            filename: window.APP_STATE.filename,
-        });
+        const data = await postJSON("/pipeline/fft", sourcePayload());
 
         renderGrayscale(canvasKspaceFull, data.kspace_full);
         emptyKspaceFull.style.display = "none";
@@ -137,7 +146,7 @@ btnUndersample.addEventListener("click", async () => {
 
     try {
         const data = await postJSON("/pipeline/mask", {
-            filename: window.APP_STATE.filename,
+            ...sourcePayload(),
             pattern: pipelineParams.pattern,
             acceleration: pipelineParams.acceleration,
             acs: pipelineParams.acs,
@@ -168,7 +177,7 @@ btnReconstruct.addEventListener("click", async () => {
 
     try {
         const data = await postJSON("/pipeline/reconstruct", {
-            filename: window.APP_STATE.filename,
+            ...sourcePayload(),
             pattern: pipelineParams.pattern,
             acceleration: pipelineParams.acceleration,
             acs: pipelineParams.acs,
@@ -207,7 +216,23 @@ btnReset.addEventListener("click", () => {
     });
 
     fileInputEl.value = "";
-    window.APP_STATE = { filename: null };
+    window.APP_STATE = { source: null, filename: null, dataset: null, sliceIndex: null };
+
+    const sourceToggleBtns = document.querySelectorAll(".segmented__option[data-source]");
+    sourceToggleBtns.forEach((b) => {
+        b.classList.toggle("is-active", b.dataset.source === "upload");
+        b.setAttribute("aria-checked", b.dataset.source === "upload" ? "true" : "false");
+    });
+    const uploadBlock = document.getElementById("uploadSourceBlock");
+    const datasetBlock = document.getElementById("datasetSourceBlock");
+    if (uploadBlock) uploadBlock.style.display = "";
+    if (datasetBlock) datasetBlock.style.display = "none";
+    if (typeof setForwardFFTVisibility === "function") setForwardFFTVisibility("upload");
+
+    const datasetSelectEl = document.getElementById("datasetSelect");
+    const sliceFieldEl = document.getElementById("sliceField");
+    if (datasetSelectEl) datasetSelectEl.selectedIndex = 0;
+    if (sliceFieldEl) sliceFieldEl.style.display = "none";
 
     logListEl.innerHTML = '<li class="log__entry log__entry--muted">console idle. load an image to begin.</li>';
     statusTextEl.textContent = "awaiting image";

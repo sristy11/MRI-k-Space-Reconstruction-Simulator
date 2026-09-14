@@ -4,6 +4,7 @@ from fastapi.templating import Jinja2Templates
 
 from routes import upload
 from routes import pipeline
+from routes import datasets
 
 app = FastAPI(
     title="MRI k-Space Reconstruction Simulator"
@@ -21,6 +22,7 @@ templates = Jinja2Templates(
 
 app.include_router(upload.router)
 app.include_router(pipeline.router)
+app.include_router(datasets.router)
 
 
 @app.get("/")
