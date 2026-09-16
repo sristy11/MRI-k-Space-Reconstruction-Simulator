@@ -50,6 +50,7 @@ function displayImage(file) {
         );
 
         emptyOriginal.style.display = "none";
+        if (typeof showStep === "function") showStep("canvasOriginal");
 
         URL.revokeObjectURL(image.src);
     };
@@ -232,6 +233,7 @@ btnLoadDataset.addEventListener("click", async () => {
 
         renderGrayscale(canvasOriginal, data.reference);
         emptyOriginal.style.display = "none";
+        if (typeof showStep === "function") showStep("canvasOriginal");
 
         sliceSlider.max = data.num_slices - 1;
         sliceSlider.value = data.slice_index;
@@ -254,7 +256,11 @@ btnLoadDataset.addEventListener("click", async () => {
             });
             renderGrayscale(canvasKspaceFull, fftData.kspace_full);
             emptyKspaceFull.style.display = "none";
+            if (typeof showStep === "function") showStep("canvasKspaceFull");
             addLog("k-space shown: raw measured data (no FFT needed)");
+
+            window.LAST_KSPACE_FULL = fftData.kspace_full;
+            if (typeof drawPaintCanvas === "function") drawPaintCanvas();
         } catch (err) {
             addLog(`error loading k-space: ${err.message}`);
         }

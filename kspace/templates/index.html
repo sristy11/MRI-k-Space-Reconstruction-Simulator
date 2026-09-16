@@ -92,10 +92,12 @@
             <button type="button" class="segmented__option is-active" data-pattern="cartesian" role="radio" aria-checked="true">cartesian</button>
             <button type="button" class="segmented__option" data-pattern="radial" role="radio" aria-checked="false">radial</button>
             <button type="button" class="segmented__option" data-pattern="random" role="radio" aria-checked="false">random</button>
+            <button type="button" class="segmented__option" data-pattern="custom" role="radio" aria-checked="false">paint</button>
+            <button type="button" class="segmented__option" data-pattern="full" role="radio" aria-checked="false">full (no undersampling)</button>
           </div>
         </div>
 
-        <div class="field">
+        <div class="field" id="accelerationField">
           <div class="field__row">
             <span class="field__label" id="factorLabel">acceleration — ×4</span>
             <span class="field__value" id="factorValue">4</span>
@@ -109,6 +111,60 @@
             <span class="field__value" id="acsValue">12</span>
           </div>
           <input type="range" id="acsSlider" min="0" max="40" step="2" value="12" class="slider">
+        </div>
+
+        <div class="field paint-editor" id="paintField" style="display: none;">
+          <div class="field__row">
+            <span class="field__label">paint k-space to sample</span>
+            <span class="field__value" id="paintDensityValue">0%</span>
+          </div>
+          <div class="paint-editor__canvas-wrap">
+            <canvas id="canvasPaintMask" width="256" height="256"></canvas>
+          </div>
+          <button type="button" class="paint-editor__expand" id="btnPaintExpand">⤢ open large canvas</button>
+          <p class="paint-editor__hint">drag to paint — left click adds, right click / shift+click erases</p>
+          <div class="field__row" style="margin-top: 8px;">
+            <span class="field__label">brush size</span>
+            <span class="field__value" id="paintBrushValue">10</span>
+          </div>
+          <input type="range" id="paintBrushSize" min="2" max="40" step="1" value="10" class="slider">
+          <div class="paint-editor__actions">
+            <button type="button" class="btn btn--small" id="btnPaintClear">clear</button>
+            <button type="button" class="btn btn--small" id="btnPaintFill">fill all</button>
+            <button type="button" class="btn btn--small" id="btnPaintInvert">invert</button>
+          </div>
+        </div>
+
+        <!-- Large drawable paint editor — same shared mask data as the small
+             inline canvas above; closing this just reverts to that small view. -->
+        <div class="modal" id="paintModal" aria-hidden="true">
+          <div class="modal__backdrop" id="paintModalBackdrop"></div>
+          <div class="modal__content" role="dialog" aria-modal="true" aria-labelledby="paintModalTitle">
+            <div class="modal__header">
+              <h3 class="modal__title" id="paintModalTitle">paint k-space to sample</h3>
+              <span class="field__value" id="paintDensityValueLarge">0%</span>
+              <button type="button" class="modal__close" id="btnPaintModalClose" aria-label="close">×</button>
+            </div>
+            <div class="modal__body paint-modal__body">
+              <div class="paint-editor__canvas-wrap paint-editor__canvas-wrap--large">
+                <canvas id="canvasPaintMaskLarge" width="256" height="256"></canvas>
+              </div>
+              <div class="paint-modal__controls">
+                <p class="paint-editor__hint">drag to paint — left click adds, right click / shift+click erases</p>
+                <div class="field__row" style="margin-top: 10px;">
+                  <span class="field__label">brush size</span>
+                  <span class="field__value" id="paintBrushValueLarge">10</span>
+                </div>
+                <input type="range" id="paintBrushSizeLarge" min="2" max="60" step="1" value="10" class="slider">
+                <div class="paint-editor__actions">
+                  <button type="button" class="btn btn--small" id="btnPaintClearLarge">clear</button>
+                  <button type="button" class="btn btn--small" id="btnPaintFillLarge">fill all</button>
+                  <button type="button" class="btn btn--small" id="btnPaintInvertLarge">invert</button>
+                </div>
+                <button type="button" class="btn btn--small" id="btnPaintDoneLarge" style="margin-top: 14px;">✓ done</button>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -130,57 +186,89 @@
 
     </aside>
 
-    <!-- ---------- CENTER: viewport grid ---------- -->
-    <section class="viewport-grid">
+    <!-- ---------- CENTER: single-view viewport ---------- -->
+    <section class="viewport-single">
 
-      <figure class="viewcell">
-        <figcaption class="viewcell__label"><span class="viewcell__index">A</span>source image</figcaption>
-        <div class="viewcell__frame">
-          <canvas id="canvasOriginal" width="256" height="256"></canvas>
-          <div class="viewcell__empty" id="emptyOriginal">no image loaded</div>
+      <div class="viewer-nav">
+        <button type="button" class="viewer-nav__arrow" id="viewerPrev" aria-label="previous step">‹</button>
+        <div class="viewer-nav__steps" id="viewerSteps" role="tablist">
+          <button type="button" class="viewer-nav__step is-active" data-page="pageOriginal" role="tab" aria-selected="true">source</button>
+          <button type="button" class="viewer-nav__step" data-page="pageKspaceFull" role="tab" aria-selected="false">k-space</button>
+          <button type="button" class="viewer-nav__step" data-page="pageMaskUnder" role="tab" aria-selected="false">sampling</button>
+          <button type="button" class="viewer-nav__step" data-page="pageReconError" role="tab" aria-selected="false">result</button>
         </div>
-      </figure>
+        <button type="button" class="viewer-nav__arrow" id="viewerNext" aria-label="next step">›</button>
+      </div>
 
-      <figure class="viewcell">
-        <figcaption class="viewcell__label"><span class="viewcell__index">B</span>k-space — full sampling</figcaption>
-        <div class="viewcell__frame">
-          <canvas id="canvasKspaceFull" width="256" height="256"></canvas>
-          <div class="viewcell__empty" id="emptyKspaceFull">run forward FFT</div>
+      <h2 class="viewer-title" id="viewerTitle">A — source image</h2>
+
+      <div class="viewer-stage" id="viewerStage">
+
+        <div class="viewer-page is-active" id="pageOriginal" data-page="pageOriginal" data-title="A — source image">
+          <div class="viewcell__frame viewcell__frame--clickable" data-canvas-id="canvasOriginal" data-kind="histogram" data-title="source image">
+            <canvas id="canvasOriginal" width="256" height="256"></canvas>
+            <div class="viewcell__empty" id="emptyOriginal">no image loaded</div>
+            <div class="viewcell__zoom-hint">🔍 click to enlarge</div>
+          </div>
         </div>
-      </figure>
 
-      <figure class="viewcell">
-        <figcaption class="viewcell__label"><span class="viewcell__index">C</span>k-space — undersampled</figcaption>
-        <div class="viewcell__frame">
-          <canvas id="canvasKspaceUnder" width="256" height="256"></canvas>
-          <div class="viewcell__empty" id="emptyKspaceUnder">apply a mask</div>
+        <div class="viewer-page" id="pageKspaceFull" data-page="pageKspaceFull" data-title="B — k-space, full sampling">
+          <div class="viewcell__frame viewcell__frame--clickable" data-canvas-id="canvasKspaceFull" data-kind="profile" data-title="k-space — full sampling">
+            <canvas id="canvasKspaceFull" width="256" height="256"></canvas>
+            <div class="viewcell__empty" id="emptyKspaceFull">run forward FFT</div>
+            <div class="viewcell__zoom-hint">🔍 click to enlarge</div>
+          </div>
         </div>
-      </figure>
 
-      <figure class="viewcell">
-        <figcaption class="viewcell__label"><span class="viewcell__index">D</span>sampling mask</figcaption>
-        <div class="viewcell__frame">
-          <canvas id="canvasMask" width="256" height="256"></canvas>
-          <div class="viewcell__empty" id="emptyMask">apply a mask</div>
+        <!-- These two come from the same "apply mask" click, so they're shown
+             together instead of auto-switching between them. -->
+        <div class="viewer-page viewer-page--pair" id="pageMaskUnder" data-page="pageMaskUnder" data-title="C/D — sampling mask & undersampled k-space">
+          <div class="viewer-pair-cell">
+            <span class="viewer-pair-cell__label">D — sampling mask</span>
+            <div class="viewcell__frame viewcell__frame--clickable" data-canvas-id="canvasMask" data-kind="density" data-title="sampling mask">
+              <canvas id="canvasMask" width="256" height="256"></canvas>
+              <div class="viewcell__empty" id="emptyMask">apply a mask</div>
+              <div class="viewcell__zoom-hint">🔍 click to enlarge</div>
+            </div>
+          </div>
+          <div class="viewer-pair-cell">
+            <span class="viewer-pair-cell__label">C — undersampled k-space</span>
+            <div class="viewcell__frame viewcell__frame--clickable" data-canvas-id="canvasKspaceUnder" data-kind="profile" data-title="k-space — undersampled">
+              <canvas id="canvasKspaceUnder" width="256" height="256"></canvas>
+              <div class="viewcell__empty" id="emptyKspaceUnder">apply a mask</div>
+              <div class="viewcell__zoom-hint">🔍 click to enlarge</div>
+            </div>
+          </div>
         </div>
-      </figure>
 
-      <figure class="viewcell">
-        <figcaption class="viewcell__label"><span class="viewcell__index">E</span>reconstructed image</figcaption>
-        <div class="viewcell__frame">
-          <canvas id="canvasRecon" width="256" height="256"></canvas>
-          <div class="viewcell__empty" id="emptyRecon">reconstruct to view</div>
+        <!-- These two come from the same "reconstruct" click, so they're
+             shown together instead of auto-switching between them. -->
+        <div class="viewer-page viewer-page--pair" id="pageReconError" data-page="pageReconError" data-title="E/F — reconstructed image & error map">
+          <div class="viewer-pair-cell">
+            <div class="viewer-pair-cell__label-row">
+              <span class="viewer-pair-cell__label">E — reconstructed image</span>
+              <div class="colormap-toggle" id="reconColormapToggle">
+                <button type="button" class="colormap-toggle__btn is-active" data-colormap="gray">gray</button>
+                <button type="button" class="colormap-toggle__btn" data-colormap="jet">color</button>
+              </div>
+            </div>
+            <div class="viewcell__frame viewcell__frame--clickable" data-canvas-id="canvasRecon" data-kind="histogram" data-title="reconstructed image">
+              <canvas id="canvasRecon" width="256" height="256"></canvas>
+              <div class="viewcell__empty" id="emptyRecon">reconstruct to view</div>
+              <div class="viewcell__zoom-hint">🔍 click to enlarge</div>
+            </div>
+          </div>
+          <div class="viewer-pair-cell">
+            <span class="viewer-pair-cell__label">F — error map |orig − recon|</span>
+            <div class="viewcell__frame viewcell__frame--clickable" data-canvas-id="canvasError" data-kind="error-histogram" data-title="error map |orig − recon|">
+              <canvas id="canvasError" width="256" height="256"></canvas>
+              <div class="viewcell__empty" id="emptyError">reconstruct to view</div>
+              <div class="viewcell__zoom-hint">🔍 click to enlarge</div>
+            </div>
+          </div>
         </div>
-      </figure>
 
-      <figure class="viewcell">
-        <figcaption class="viewcell__label"><span class="viewcell__index">F</span>error map |orig − recon|</figcaption>
-        <div class="viewcell__frame">
-          <canvas id="canvasError" width="256" height="256"></canvas>
-          <div class="viewcell__empty" id="emptyError">reconstruct to view</div>
-        </div>
-      </figure>
-
+      </div>
     </section>
 
     <!-- ---------- RIGHT: readout rail ---------- -->
@@ -227,9 +315,38 @@
   </footer>
 
 </div>
+<div class="modal" id="imageModal" aria-hidden="true">
+  <div class="modal__backdrop" id="modalBackdrop"></div>
+  <div class="modal__content" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal__header">
+      <h3 class="modal__title" id="modalTitle">—</h3>
+      <div class="modal__zoom-controls">
+        <button type="button" class="modal__zoom-btn" id="modalZoomOut" aria-label="zoom out">−</button>
+        <span class="modal__zoom-level" id="modalZoomLevel">100%</span>
+        <button type="button" class="modal__zoom-btn" id="modalZoomIn" aria-label="zoom in">+</button>
+        <button type="button" class="modal__zoom-btn modal__zoom-btn--wide" id="modalZoomReset">reset</button>
+      </div>
+      <button type="button" class="modal__close" id="modalClose" aria-label="close">×</button>
+    </div>
+    <div class="modal__body">
+      <div class="modal__image-wrap" id="modalImageWrap">
+        <canvas id="modalCanvas" width="256" height="256"></canvas>
+      </div>
+      <div class="modal__chart-wrap">
+        <h4 class="modal__chart-title" id="modalChartTitle">intensity histogram</h4>
+        <canvas id="modalChartCanvas" width="320" height="200"></canvas>
+        <p class="modal__chart-note" id="modalChartNote"></p>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script src="../static/js/canvasRender.js"></script>
+<script src="../static/js/viewer.js"></script>
 <script src="../static/js/controls.js"></script>
+<script src="../static/js/paint.js"></script>
 <script src="../static/js/main.js"></script>
+<script src="../static/js/modal.js"></script>
 
 </body>
 </html>

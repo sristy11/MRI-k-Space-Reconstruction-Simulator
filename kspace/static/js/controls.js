@@ -4,12 +4,14 @@
 const statusTextEl = document.getElementById("statusText");
 
 const patternButtons = document.querySelectorAll(".segmented__option[data-pattern]");
+const accelerationField = document.getElementById("accelerationField");
 const factorSlider = document.getElementById("factorSlider");
 const factorLabel = document.getElementById("factorLabel");
 const factorValue = document.getElementById("factorValue");
 const acsField = document.getElementById("acsField");
 const acsSlider = document.getElementById("acsSlider");
 const acsValue = document.getElementById("acsValue");
+const paintField = document.getElementById("paintField");
 
 const btnTransform = document.getElementById("btnTransform");
 const btnUndersample = document.getElementById("btnUndersample");
@@ -58,8 +60,19 @@ patternButtons.forEach((btn) => {
 
         pipelineParams.pattern = btn.dataset.pattern;
 
-        // radial_mask has no autocalibration-lines concept, so hide that control
-        acsField.style.display = pipelineParams.pattern === "radial" ? "none" : "";
+        // radial_mask has no autocalibration-lines concept; a hand-painted
+        // mask has no acceleration or ACS concept at all, since the user is
+        // directly choosing every sampled point; "full" has no undersampling
+        // controls at all since nothing is being undersampled.
+        const isCustom = pipelineParams.pattern === "custom";
+        const isFull = pipelineParams.pattern === "full";
+        acsField.style.display = (pipelineParams.pattern === "radial" || isCustom || isFull) ? "none" : "";
+        accelerationField.style.display = (isCustom || isFull) ? "none" : "";
+        paintField.style.display = isCustom ? "" : "none";
+
+        if (isCustom && typeof initPaintCanvas === "function") {
+            initPaintCanvas();
+        }
     });
 });
 
@@ -89,12 +102,53 @@ function requireImage() {
     return true;
 }
 
+// ---- reconstructed image colormap toggle (grayscale / jet) ----
+
+const reconColormapButtons = document.querySelectorAll(".colormap-toggle__btn");
+let reconColormap = "gray";
+
+function renderRecon(animate = false) {
+    if (!window.LAST_RECON) return;
+    if (reconColormap === "jet") {
+        renderJet(canvasRecon, window.LAST_RECON, animate);
+    } else {
+        renderGrayscale(canvasRecon, window.LAST_RECON, animate);
+    }
+}
+
+reconColormapButtons.forEach((btn) => {
+    btn.addEventListener("click", () => {
+        if (!window.LAST_RECON) {
+            if (typeof addLog === "function") addLog("run \"reconstruct\" first before switching colormap");
+            if (typeof statusTextEl !== "undefined") statusTextEl.textContent = "no reconstruction yet";
+            return;
+        }
+
+        reconColormapButtons.forEach((b) => b.classList.remove("is-active"));
+        btn.classList.add("is-active");
+        reconColormap = btn.dataset.colormap;
+        renderRecon();
+    });
+});
+
 function sourcePayload() {
     const state = window.APP_STATE;
     if (state.source === "dataset") {
         return { source: "dataset", dataset: state.dataset, slice_index: state.sliceIndex };
     }
     return { source: "upload", filename: state.filename };
+}
+
+function maskPayload() {
+    const base = {
+        pattern: pipelineParams.pattern,
+        acceleration: pipelineParams.acceleration,
+        acs: pipelineParams.acs,
+    };
+    if (pipelineParams.pattern === "custom" && typeof getPaintMaskArray === "function") {
+        base.custom_mask = getPaintMaskArray();
+    }
+    return base;
 }
 
 async function postJSON(url, body) {
@@ -129,6 +183,10 @@ btnTransform.addEventListener("click", async () => {
 
         renderGrayscale(canvasKspaceFull, data.kspace_full);
         emptyKspaceFull.style.display = "none";
+        showStep("canvasKspaceFull");
+
+        window.LAST_KSPACE_FULL = data.kspace_full;
+        if (typeof drawPaintCanvas === "function") drawPaintCanvas();
 
         statusTextEl.textContent = "forward FFT complete";
         addLog("forward FFT: image → k-space");
@@ -142,14 +200,18 @@ btnTransform.addEventListener("click", async () => {
 btnUndersample.addEventListener("click", async () => {
     if (!requireImage()) return;
 
+    if (pipelineParams.pattern === "custom" && typeof paintHasAnyPoints === "function" && !paintHasAnyPoints()) {
+        statusTextEl.textContent = "paint at least one point first";
+        addLog("error: custom mask is empty — nothing painted yet");
+        return;
+    }
+
     statusTextEl.textContent = "applying undersampling mask...";
 
     try {
         const data = await postJSON("/pipeline/mask", {
             ...sourcePayload(),
-            pattern: pipelineParams.pattern,
-            acceleration: pipelineParams.acceleration,
-            acs: pipelineParams.acs,
+            ...maskPayload(),
         });
 
         renderGrayscale(canvasMask, data.mask);
@@ -157,6 +219,8 @@ btnUndersample.addEventListener("click", async () => {
 
         renderGrayscale(canvasKspaceUnder, data.kspace_under);
         emptyKspaceUnder.style.display = "none";
+
+        showStep("canvasMask");
 
         metricDensity.textContent = `${(data.density * 100).toFixed(1)}%`;
         metricPoints.textContent = data.points_kept.toLocaleString();
@@ -173,21 +237,28 @@ btnUndersample.addEventListener("click", async () => {
 btnReconstruct.addEventListener("click", async () => {
     if (!requireImage()) return;
 
+    if (pipelineParams.pattern === "custom" && typeof paintHasAnyPoints === "function" && !paintHasAnyPoints()) {
+        statusTextEl.textContent = "paint at least one point first";
+        addLog("error: custom mask is empty — nothing painted yet");
+        return;
+    }
+
     statusTextEl.textContent = "reconstructing...";
 
     try {
         const data = await postJSON("/pipeline/reconstruct", {
             ...sourcePayload(),
-            pattern: pipelineParams.pattern,
-            acceleration: pipelineParams.acceleration,
-            acs: pipelineParams.acs,
+            ...maskPayload(),
         });
 
-        renderGrayscale(canvasRecon, data.recon);
+        window.LAST_RECON = data.recon;
+        renderRecon(true);
         emptyRecon.style.display = "none";
 
         renderHot(canvasError, data.error);
         emptyError.style.display = "none";
+
+        showStep("canvasRecon");
 
         metricMSE.textContent = fmt(data.metrics.mse, 6);
         metricPSNR.textContent = data.metrics.psnr === null ? "∞ dB" : `${fmt(data.metrics.psnr, 2)} dB`;
@@ -236,4 +307,21 @@ btnReset.addEventListener("click", () => {
 
     logListEl.innerHTML = '<li class="log__entry log__entry--muted">console idle. load an image to begin.</li>';
     statusTextEl.textContent = "awaiting image";
+
+    if (typeof showStep === "function") showStep("canvasOriginal");
+
+    patternButtons.forEach((b) => {
+        b.classList.toggle("is-active", b.dataset.pattern === "cartesian");
+        b.setAttribute("aria-checked", b.dataset.pattern === "cartesian" ? "true" : "false");
+    });
+    pipelineParams.pattern = "cartesian";
+    accelerationField.style.display = "";
+    acsField.style.display = "";
+    paintField.style.display = "none";
+    window.LAST_KSPACE_FULL = null;
+    if (typeof clearPaintMask === "function") clearPaintMask();
+
+    window.LAST_RECON = null;
+    reconColormap = "gray";
+    reconColormapButtons.forEach((b) => b.classList.toggle("is-active", b.dataset.colormap === "gray"));
 });
