@@ -6,6 +6,15 @@
 // and a larger one in an expandable modal for easier precise drawing. Both
 // always redraw together, so closing the modal just reveals the same result
 // on the small canvas — nothing is lost or reset by expanding/collapsing.
+//
+// IMPORTANT (bug fix): the paint grid is NOT a fixed 256x256 any more. The
+// backend multiplies the mask straight into k-space and rejects anything whose
+// shape doesn't match, so a hardcoded 256x256 mask could only ever work for
+// uploaded photos (which we resize to 256x256). A real .h5 scan slice has its
+// own k-space shape (e.g. 640x368), so "apply mask" always failed with
+// "custom_mask shape (256, 256) doesn't match k-space shape (640, 368)".
+// The grid now tracks the shape of the loaded k-space (window.LAST_KSPACE_FULL)
+// and the existing painting is resampled whenever that shape changes.
 
 const canvasPaintMask = document.getElementById("canvasPaintMask");
 const canvasPaintMaskLarge = document.getElementById("canvasPaintMaskLarge");
@@ -13,6 +22,9 @@ const paintCanvases = [canvasPaintMask, canvasPaintMaskLarge];
 
 const paintDensityValue = document.getElementById("paintDensityValue");
 const paintDensityValueLarge = document.getElementById("paintDensityValueLarge");
+
+const paintGridValue = document.getElementById("paintGridValue");
+const paintGridValueLarge = document.getElementById("paintGridValueLarge");
 
 const paintBrushSize = document.getElementById("paintBrushSize");
 const paintBrushValue = document.getElementById("paintBrushValue");
@@ -32,15 +44,85 @@ const btnPaintDoneLarge = document.getElementById("btnPaintDoneLarge");
 const paintModal = document.getElementById("paintModal");
 const paintModalBackdrop = document.getElementById("paintModalBackdrop");
 
-const PAINT_SIZE = 256;
-let paintMask = new Uint8Array(PAINT_SIZE * PAINT_SIZE); // 0 = not sampled, 1 = sampled
-let paintBrushRadius = parseInt(paintBrushSize.value, 10);
+// Reference grid the brush-size slider is calibrated against, so a brush of
+// "10" covers a visually similar fraction of the canvas on any grid size.
+const PAINT_REF_SIZE = 256;
+
+let paintW = PAINT_REF_SIZE;
+let paintH = PAINT_REF_SIZE;
+let paintMask = new Uint8Array(paintW * paintH); // 0 = not sampled, 1 = sampled
+let paintBrushSlider = parseInt(paintBrushSize.value, 10);
 let paintIsDrawing = false;
 let paintEraseMode = false;
 let paintRedrawPending = false;
 
 function paintIndex(x, y) {
-    return y * PAINT_SIZE + x;
+    return y * paintW + x;
+}
+
+// Brush radius in *grid* pixels, scaled so the slider feels the same on a
+// 256x256 upload grid and on a 640x368 scan grid.
+function paintBrushRadius() {
+    const scale = Math.min(paintW, paintH) / PAINT_REF_SIZE;
+    return Math.max(1, Math.round(paintBrushSlider * scale));
+}
+
+// ---- grid size tracking -----------------------------------------------------
+
+function paintKspaceDims() {
+    const k = window.LAST_KSPACE_FULL;
+    if (Array.isArray(k) && k.length > 0 && Array.isArray(k[0]) && k[0].length > 0) {
+        return { w: k[0].length, h: k.length };
+    }
+    return null;
+}
+
+// Nearest-neighbour resample so a mask painted before the grid size was known
+// (or painted against a different slice/dataset) survives the change instead
+// of being silently thrown away.
+function resamplePaintMask(src, sw, sh, dw, dh) {
+    const out = new Uint8Array(dw * dh);
+    for (let y = 0; y < dh; y++) {
+        const sy = Math.min(sh - 1, Math.floor((y * sh) / dh));
+        for (let x = 0; x < dw; x++) {
+            const sx = Math.min(sw - 1, Math.floor((x * sw) / dw));
+            out[y * dw + x] = src[sy * sw + sx];
+        }
+    }
+    return out;
+}
+
+function updatePaintGridLabel() {
+    const text = `${paintH}×${paintW}`;
+    if (paintGridValue) paintGridValue.textContent = text;
+    if (paintGridValueLarge) paintGridValueLarge.textContent = text;
+}
+
+function setPaintGridSize(w, h) {
+    if (w === paintW && h === paintH) return false;
+
+    paintMask = resamplePaintMask(paintMask, paintW, paintH, w, h);
+    paintW = w;
+    paintH = h;
+
+    // The canvas backing store must match the mask exactly — putImageData
+    // does not scale, so a stale width/height would crop the mask.
+    paintCanvases.forEach((canvas) => {
+        canvas.width = w;
+        canvas.height = h;
+    });
+
+    updatePaintGridLabel();
+    updatePaintDensity();
+    return true;
+}
+
+// Called before every redraw: keeps the paint grid locked to whatever k-space
+// is currently loaded (uploaded image or .h5 dataset slice).
+function syncPaintGridToKspace() {
+    const dims = paintKspaceDims();
+    if (!dims) return false;
+    return setPaintGridSize(dims.w, dims.h);
 }
 
 function requestPaintRedraw() {
@@ -57,22 +139,24 @@ function requestPaintRedraw() {
 // the real k-space structure rather than a blank square. Renders onto every
 // registered canvas (small + large) so they always stay in sync.
 function drawPaintCanvas() {
-    const background = window.LAST_KSPACE_FULL;
-    const imageData = new ImageData(PAINT_SIZE, PAINT_SIZE);
+    syncPaintGridToKspace();
 
-    for (let y = 0; y < PAINT_SIZE; y++) {
+    const background = window.LAST_KSPACE_FULL;
+    const imageData = new ImageData(paintW, paintH);
+
+    for (let y = 0; y < paintH; y++) {
         const bgRow = background ? background[y] : null;
-        for (let x = 0; x < PAINT_SIZE; x++) {
+        for (let x = 0; x < paintW; x++) {
             const idx = paintIndex(x, y);
             const pixelIdx = idx * 4;
             const painted = paintMask[idx] === 1;
 
             if (painted) {
-                imageData.data[pixelIdx] = 63;
-                imageData.data[pixelIdx + 1] = 215;
-                imageData.data[pixelIdx + 2] = 255;
+                imageData.data[pixelIdx] = 74;
+                imageData.data[pixelIdx + 1] = 227;
+                imageData.data[pixelIdx + 2] = 197;
             } else {
-                const bg = bgRow ? Math.round(bgRow[x] * 70) : 0;
+                const bg = bgRow ? Math.round((bgRow[x] || 0) * 80) : 0;
                 imageData.data[pixelIdx] = bg;
                 imageData.data[pixelIdx + 1] = bg;
                 imageData.data[pixelIdx + 2] = bg;
@@ -87,8 +171,11 @@ function drawPaintCanvas() {
 }
 
 function initPaintCanvas() {
+    syncPaintGridToKspace();
+    updatePaintGridLabel();
     drawPaintCanvas();
     updatePaintDensity();
+    setBrushRadius(paintBrushSlider);
 }
 
 function updatePaintDensity() {
@@ -104,11 +191,14 @@ function paintHasAnyPoints() {
     return false;
 }
 
+// Emitted as rows × cols matching k-space exactly (see the shape check in
+// routes/pipeline.py::_build_mask).
 function getPaintMaskArray() {
+    syncPaintGridToKspace();
     const arr = [];
-    for (let y = 0; y < PAINT_SIZE; y++) {
-        const row = new Array(PAINT_SIZE);
-        for (let x = 0; x < PAINT_SIZE; x++) {
+    for (let y = 0; y < paintH; y++) {
+        const row = new Array(paintW);
+        for (let x = 0; x < paintW; x++) {
             row[x] = paintMask[paintIndex(x, y)];
         }
         arr.push(row);
@@ -137,18 +227,21 @@ function invertPaintMask() {
 function canvasCoordsFromEvent(evt, canvasEl) {
     const rect = canvasEl.getBoundingClientRect();
     const point = evt.touches ? evt.touches[0] : evt;
-    const x = Math.floor(((point.clientX - rect.left) / rect.width) * PAINT_SIZE);
-    const y = Math.floor(((point.clientY - rect.top) / rect.height) * PAINT_SIZE);
-    return { x, y };
+    const x = Math.floor(((point.clientX - rect.left) / rect.width) * paintW);
+    const y = Math.floor(((point.clientY - rect.top) / rect.height) * paintH);
+    return {
+        x: Math.max(0, Math.min(paintW - 1, x)),
+        y: Math.max(0, Math.min(paintH - 1, y)),
+    };
 }
 
 function paintAt(x, y, erase) {
-    const r = paintBrushRadius;
+    const r = paintBrushRadius();
     const r2 = r * r;
     const minX = Math.max(0, x - r);
-    const maxX = Math.min(PAINT_SIZE - 1, x + r);
+    const maxX = Math.min(paintW - 1, x + r);
     const minY = Math.max(0, y - r);
-    const maxY = Math.min(PAINT_SIZE - 1, y + r);
+    const maxY = Math.min(paintH - 1, y + r);
 
     for (let yy = minY; yy <= maxY; yy++) {
         for (let xx = minX; xx <= maxX; xx++) {
@@ -164,6 +257,7 @@ function paintAt(x, y, erase) {
 
 function handlePaintStart(evt) {
     evt.preventDefault();
+    syncPaintGridToKspace();
     paintIsDrawing = true;
     paintEraseMode = evt.button === 2 || evt.shiftKey;
     const { x, y } = canvasCoordsFromEvent(evt, evt.currentTarget);
@@ -197,7 +291,7 @@ window.addEventListener("mouseup", handlePaintEnd);
 // ---- brush size (small + large controls stay in sync) ----
 
 function setBrushRadius(value) {
-    paintBrushRadius = value;
+    paintBrushSlider = value;
     paintBrushValue.textContent = value;
     paintBrushValueLarge.textContent = value;
     paintBrushSize.value = value;
@@ -239,3 +333,5 @@ document.addEventListener("keydown", (e) => {
         closePaintModal();
     }
 });
+
+updatePaintGridLabel();

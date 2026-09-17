@@ -274,6 +274,8 @@ btnReconstruct.addEventListener("click", async () => {
 
 // ---- reset session ----
 btnReset.addEventListener("click", () => {
+    if (typeof stopSliceVideo === "function") stopSliceVideo();
+
     [canvasOriginalEl, canvasKspaceFull, canvasKspaceUnder, canvasMask, canvasRecon, canvasError].forEach(
         clearCanvas
     );

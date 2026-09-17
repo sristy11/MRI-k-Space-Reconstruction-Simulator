@@ -157,12 +157,26 @@ def _build_mask(shape, pattern: str, acceleration: int, acs: int, custom_mask=No
         if custom_mask is None:
             raise HTTPException(status_code=400, detail="custom_mask is required when pattern='custom'")
         arr = np.array(custom_mask, dtype=float)
-        if arr.shape != tuple(shape):
+        if arr.ndim != 2 or arr.size == 0:
             raise HTTPException(
                 status_code=400,
-                detail=f"custom_mask shape {arr.shape} doesn't match k-space shape {tuple(shape)}",
+                detail="custom_mask must be a non-empty 2D array of 0/1 values",
             )
-        return arr
+        target = tuple(int(v) for v in shape)
+        if arr.shape != target:
+            # The painted grid normally already matches k-space (the frontend
+            # sizes its canvas from the loaded k-space shape), but a dataset
+            # slice can change shape between painting and submitting. Rather
+            # than rejecting the request, resample the painting onto the
+            # k-space grid with nearest-neighbour so the mask stays usable.
+            rows = np.minimum(
+                (np.arange(target[0]) * arr.shape[0]) // target[0], arr.shape[0] - 1
+            )
+            cols = np.minimum(
+                (np.arange(target[1]) * arr.shape[1]) // target[1], arr.shape[1] - 1
+            )
+            arr = arr[np.ix_(rows, cols)]
+        return (arr > 0).astype(float)
     elif pattern == "full":
         # No undersampling at all — every k-space point is kept, so this is
         # the baseline reconstruction to compare all the other patterns against.
