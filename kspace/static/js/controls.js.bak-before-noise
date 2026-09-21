@@ -125,22 +125,6 @@ noiseSlider.addEventListener("input", syncNoiseFromSlider);
 window.addEventListener("pageshow", syncNoiseFromSlider);
 syncNoiseFromSlider();
 
-// index.html shows a red "noise controls are NOT active" note by default.
-// Reaching this line proves the new controls.js is the one running, so hide it.
-const noiseStatusEl = document.getElementById("noiseStatus");
-if (noiseStatusEl) noiseStatusEl.style.display = "none";
-
-// The backend silently ignores unknown fields, so if routes/pipeline.py is the
-// old version noise would quietly do nothing. Detect that from the response.
-function warnIfServerIgnoredNoise(data) {
-    if (pipelineParams.noise_level > 0 && data.noise_level === undefined) {
-        statusTextEl.textContent = "server ignored noise — update routes/pipeline.py";
-        addLog("warning: server did not apply noise. routes/pipeline.py is the old version: replace it and restart uvicorn.");
-        return true;
-    }
-    return false;
-}
-
 // Same level, different random noise: bump the seed so the next
 // undersample / reconstruct run draws a fresh noise realization.
 btnNoiseReroll.addEventListener("click", () => {
@@ -167,8 +151,7 @@ function renderNoiseReview(metrics, metricsClean, noiseLevel) {
     if (metricsClean.psnr === null && metrics.psnr === null) {
         metricPSNRDrop.textContent = "0.00 dB";
     } else if (metricsClean.psnr === null) {
-        // noise-free recon was exact (e.g. full sampling): nothing to subtract from
-        metricPSNRDrop.textContent = `from ∞ → ${fmt(metrics.psnr, 1)} dB`;
+        metricPSNRDrop.textContent = "∞ dB";   // clean recon was perfect, noisy one isn't
     } else if (metrics.psnr === null) {
         metricPSNRDrop.textContent = "—";
     } else {
@@ -313,7 +296,6 @@ btnUndersample.addEventListener("click", async () => {
 
         metricDensity.textContent = `${(data.density * 100).toFixed(1)}%`;
         metricPoints.textContent = data.points_kept.toLocaleString();
-        warnIfServerIgnoredNoise(data);
 
         statusTextEl.textContent = `mask applied (${pipelineParams.pattern}, ×${pipelineParams.acceleration})`;
         addLog(`mask: ${pipelineParams.pattern} @ ×${pipelineParams.acceleration}` +
@@ -355,7 +337,6 @@ btnReconstruct.addEventListener("click", async () => {
         metricPSNR.textContent = data.metrics.psnr === null ? "∞ dB" : `${fmt(data.metrics.psnr, 2)} dB`;
         metricNRMSE.textContent = fmt(data.metrics.nrmse, 4);
 
-        if (warnIfServerIgnoredNoise(data)) return;
         renderNoiseReview(data.metrics, data.metrics_clean, data.noise_level);
 
         statusTextEl.textContent = "reconstruction complete";

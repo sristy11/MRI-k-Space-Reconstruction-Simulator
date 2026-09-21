@@ -3,83 +3,1328 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="dark light">
+<script>
+/* apply the saved theme before anything is painted (no flash); default = dark */
+(function () {
+  var theme = "dark";
+  try { var saved = localStorage.getItem("kspace-theme"); if (saved === "light" || saved === "dark") theme = saved; } catch (e) {}
+  document.documentElement.setAttribute("data-theme", theme);
+})();
+</script>
 <title>K-SPACE — undersampling &amp; reconstruction studio</title>
-<link rel="stylesheet" href="../static/css/styles.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   K-SPACE studio  -  v2 "imaging workstation" theme
+   Dark, low-glare chrome so the images carry the colour.
+   Layout: controls | workspace (tabs: images + sound lab) | results
+   ============================================================ */
+
+:root{
+  /* surfaces */
+  --bg:          #090C11;
+  --panel:       #10161F;
+  --panel-2:     #151C27;
+  --panel-3:     #1C2634;
+  --well:        #05080C;
+
+  /* lines */
+  --line:        #232D3B;
+  --line-soft:   #19212C;
+  --line-strong: #34435A;
+
+  /* text */
+  --text:        #E8EEF6;
+  --text-2:      #A7B3C4;
+  --text-3:      #8291A6;
+
+  /* accents */
+  --accent:        #2DD4BF;
+  --accent-strong: #14B8A6;
+  --accent-ink:    #04231F;
+  --accent-wash:   rgba(45,212,191,0.12);
+  --accent-line:   rgba(45,212,191,0.45);
+  --cyan:   #38BDF8;
+  --amber:  #F5A524;
+  --red:    #F87171;
+  --green:  #4ADE80;
+
+  --font-body: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+
+  /* theme-dependent helpers (light theme overrides these below) */
+  --accent-text:   #2DD4BF;
+  --header-bg:     rgba(9,12,17,0.82);
+  --glow-1:        rgba(45,212,191,0.07);
+  --glow-2:        rgba(56,189,248,0.05);
+  --stage-grid:    rgba(255,255,255,0.025);
+  --grad-a1:  #34E0CB;  --grad-a2:  #14B8A6;
+  --grad-a1h: #5EEAD4;  --grad-a2h: #19C9B3;
+  --accent-btn-shadow: rgba(20,184,166,0.28);
+  --accent-chip-bg:    rgba(4,35,31,0.18);
+  --step-chip-bg:      rgba(255,255,255,0.08);
+  --amber-wash: rgba(245,165,36,0.10);
+  --amber-line: rgba(245,165,36,0.50);
+  --danger-bg:   rgba(248,113,113,0.10);
+  --danger-line: rgba(248,113,113,0.35);
+  --danger-text: #FCA5A5;
+  --line-hover:  #4A5C7C;
+  --option-bg:   #151C27;
+  --thumb-bg:    #F4FBFA;
+  --thumb-shadow: rgba(0,0,0,0.5);
+  --frame-shadow: rgba(0,0,0,0.5);
+  color-scheme: dark;
+
+  --r-lg: 14px;
+  --r:    11px;
+  --r-sm: 8px;
+  --shadow: 0 1px 0 rgba(255,255,255,0.03) inset, 0 10px 30px rgba(0,0,0,0.35);
+}
+
+
+/* ============================================================
+   Light theme  (toggle in the header; choice is remembered)
+   Image frames and graph plots deliberately stay dark in both
+   themes - that is how imaging viewers keep contrast honest.
+   ============================================================ */
+:root[data-theme="light"]{
+  --bg:          #EDF1F6;
+  --panel:       #FFFFFF;
+  --panel-2:     #F5F8FB;
+  --panel-3:     #E8EDF4;
+  --well:        #E3E9F1;
+
+  --line:        #D8DFE9;
+  --line-soft:   #E5EAF1;
+  --line-strong: #BFC9D7;
+
+  --text:        #0F1B2D;
+  --text-2:      #364559;
+  --text-3:      #58677C;
+
+  --accent:        #0D6B63;
+  --accent-strong: #0D9488;
+  --accent-ink:    #FFFFFF;
+  --accent-wash:   rgba(13,148,136,0.10);
+  --accent-line:   rgba(13,148,136,0.45);
+  --cyan:   #0369A1;
+  --amber:  #B45309;
+  --red:    #DC2626;
+  --green:  #16A34A;
+
+  --accent-text:   #0D6B63;
+  --header-bg:     rgba(237,241,246,0.86);
+  --glow-1:        rgba(20,184,166,0.10);
+  --glow-2:        rgba(56,189,248,0.10);
+  --stage-grid:    rgba(15,27,45,0.05);
+  --grad-a1:  #0B8579;  --grad-a2:  #09685E;
+  --grad-a1h: #0D8E81;  --grad-a2h: #0A7167;
+  --accent-btn-shadow: rgba(11,122,112,0.28);
+  --accent-chip-bg:    rgba(255,255,255,0.24);
+  --step-chip-bg:      rgba(15,27,45,0.07);
+  --amber-wash: rgba(180,83,9,0.08);
+  --amber-line: rgba(180,83,9,0.45);
+  --danger-bg:   rgba(220,38,38,0.07);
+  --danger-line: rgba(220,38,38,0.30);
+  --danger-text: #B91C1C;
+  --line-hover:  #93A3BA;
+  --option-bg:   #FFFFFF;
+  --thumb-bg:    #FFFFFF;
+  --thumb-shadow: rgba(15,27,45,0.28);
+  --frame-shadow: rgba(15,27,45,0.28);
+  --shadow: 0 1px 2px rgba(15,27,45,0.05), 0 8px 24px rgba(15,27,45,0.06);
+  color-scheme: light;
+}
+
+*{ box-sizing: border-box; }
+
+html, body{
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+body{
+  min-height: 100vh;
+  background:
+    radial-gradient(1100px 480px at 12% -8%, var(--glow-1), transparent 60%),
+    radial-gradient(900px 500px at 100% 0%, var(--glow-2), transparent 55%),
+    var(--bg);
+  background-attachment: fixed;
+}
+
+button, select, input{ font-family: inherit; }
+::selection{ background: var(--accent-wash); }
+
+:focus-visible{
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* thin dark scrollbars */
+*{ scrollbar-width: thin; scrollbar-color: var(--line-strong) transparent; }
+::-webkit-scrollbar{ width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb{ background: var(--line-strong); border-radius: 8px; border: 2px solid transparent; background-clip: padding-box; }
+::-webkit-scrollbar-track{ background: transparent; }
+
+/* ============================================================
+   Shell + top bar
+   ============================================================ */
+
+.console{
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.console__header{
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  height: 60px;
+  padding: 0 24px;
+  background: var(--header-bg);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--line);
+}
+
+.brand{ display: flex; align-items: center; gap: 12px; }
+
+.brand__mark{
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  color: #04231F;
+  background: linear-gradient(145deg, #5EEAD4, #14B8A6);
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.12) inset, 0 4px 14px rgba(20,184,166,0.35);
+}
+.brand__mark svg{ width: 20px; height: 20px; }
+
+.brand__title{
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.brand__subtitle{
+  margin: 1px 0 0;
+  font-size: 11.5px;
+  color: var(--text-3);
+}
+
+.header__right{ display: flex; align-items: center; gap: 10px; min-width: 0; }
+
+.theme-toggle{
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  color: var(--text-2);
+  cursor: pointer;
+  transition: background .14s, color .14s, border-color .14s;
+}
+.theme-toggle:hover{ background: var(--panel-3); color: var(--text); border-color: var(--line-strong); }
+.theme-toggle svg{ width: 16px; height: 16px; }
+.theme-toggle .i-moon{ display: none; }
+:root[data-theme="light"] .theme-toggle .i-sun{ display: none; }
+:root[data-theme="light"] .theme-toggle .i-moon{ display: block; }
+
+.header__status{
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  height: 30px;
+  padding: 0 14px 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--text-2);
+  max-width: 46vw;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.header__status #statusText{ overflow: hidden; text-overflow: ellipsis; }
+
+.status__dot{
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-3);
+}
+.status__dot.is-active{ background: var(--cyan);  box-shadow: 0 0 0 3px rgba(56,189,248,0.2); animation: pulse 1.3s ease-in-out infinite; }
+.status__dot.is-warning{ background: var(--amber); box-shadow: 0 0 0 3px rgba(245,165,36,0.2); }
+.status__dot.is-done{ background: var(--green);    box-shadow: 0 0 0 3px rgba(74,222,128,0.18); }
+
+@keyframes pulse{ 0%,100%{ opacity: 1; } 50%{ opacity: 0.4; } }
+
+/* ---- 3-column workspace ---- */
+
+.console__body{
+  flex: 1;
+  width: 100%;
+  max-width: 1880px;
+  margin: 0 auto;
+  padding: 20px 24px 8px;
+  display: grid;
+  grid-template-columns: 330px minmax(0, 1fr) 316px;
+  gap: 20px;
+  align-items: start;
+}
+
+.rail{
+  grid-column: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  position: sticky;
+  top: 80px;
+  max-height: calc(100vh - 100px);
+  overflow-y: auto;
+  padding: 0 4px 0 0;
+}
+
+.viewport-single{ grid-column: 2; }
+
+.rail--readout{ grid-column: 3; }
+
+/* ============================================================
+   Panels + form controls
+   ============================================================ */
+
+.panel{
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  padding: 16px;
+  box-shadow: var(--shadow);
+}
+
+.panel__eyebrow{
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0 0 14px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--text-2);
+}
+.panel__eyebrow::after{
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--line-soft);
+}
+.panel__num{
+  display: inline-grid;
+  place-items: center;
+  min-width: 22px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 6px;
+  background: var(--accent-wash);
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0;
+}
+
+/* Run panel stays visible at the bottom of the scrolling left column */
+.panel--actions{
+  position: sticky;
+  bottom: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: linear-gradient(180deg, var(--panel), var(--panel));
+  box-shadow: 0 -14px 22px -6px var(--bg), var(--shadow);
+}
+
+.field{ margin-bottom: 14px; }
+.field:last-child{ margin-bottom: 0; }
+
+.field__label{
+  display: block;
+  margin-bottom: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-2);
+}
+
+.field__row{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+.field__row .field__label{ margin-bottom: 0; }
+.field__row--sub{ margin-bottom: 9px; }
+.field__sublabel{ font-size: 11px; color: var(--text-3); }
+
+.field__value{
+  min-width: 34px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: var(--panel-3);
+  border: 1px solid var(--line);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-align: center;
+  color: var(--text);
+}
+.field__value--soft{ background: transparent; border-color: transparent; color: var(--text-3); }
+
+/* segmented control */
+.segmented{
+  display: grid;
+  grid-template-columns: repeat(var(--cols, 4), 1fr);
+  gap: 3px;
+  padding: 3px;
+  background: var(--well);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.segmented__option{
+  min-width: 0;
+  padding: 7px 6px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-2);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background .14s, color .14s, border-color .14s;
+}
+.segmented__option--wide{ grid-column: 1 / -1; }
+.segmented__option:hover:not(.is-active){ color: var(--text); background: var(--panel-2); }
+.segmented__option.is-active{
+  background: var(--accent-wash);
+  border-color: var(--accent-line);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+
+/* ---- hover menu (sampling method): shows only the current choice; the
+        full list drops down on hover / focus, like search suggestions ---- */
+.menu{ position: relative; }
+
+.menu__trigger{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  height: 38px;
+  padding: 0 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 9px;
+  background: var(--panel-2);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color .14s, background .14s;
+}
+.menu__trigger:hover,
+.menu.is-open .menu__trigger{ border-color: var(--accent-line); background: var(--panel-3); }
+.menu__chev{ flex: none; width: 15px; height: 15px; color: var(--text-3); transition: transform .16s; }
+.menu.is-open .menu__chev{ transform: rotate(180deg); color: var(--accent); }
+
+.menu__list{
+  display: none;
+  position: fixed;             /* not clipped by the scrolling left column; placed by viewer.js */
+  z-index: 60;
+  min-width: 230px;
+  padding: 5px;
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  background: var(--panel);
+  box-shadow: 0 18px 44px var(--frame-shadow);
+}
+.menu.is-open .menu__list{ display: block; animation: menuIn .12s ease-out; }
+@keyframes menuIn{ from{ opacity: 0; transform: translateY(-4px); } to{ opacity: 1; transform: none; } }
+
+.menu__list .segmented__option{
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  width: 100%;
+  padding: 8px 32px 8px 11px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  font-weight: 500;
+}
+.menu__list .segmented__option:hover:not(.is-active),
+.menu__list .segmented__option:focus-visible{ background: var(--panel-3); color: var(--text); outline: none; }
+.menu__list .segmented__option.is-active{ background: var(--accent-wash); border-color: var(--accent-line); color: var(--accent); }
+.menu__list .segmented__option.is-active::after{
+  content: "";
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  width: 6px;
+  height: 11px;
+  margin-top: -8px;
+  border: solid var(--accent);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+.menu__name{ font-size: 13px; font-weight: 600; }
+.menu__desc{ font-size: 11px; font-weight: 400; color: var(--text-3); }
+.menu__list .segmented__option.is-active .menu__desc{ color: var(--text-2); }
+
+/* select + range */
+select.slider,
+.sl-select{
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  height: 36px;
+  padding: 0 32px 0 11px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-sm);
+  background-color: var(--panel-2);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236F7C8F' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  color: var(--text);
+  font-size: 12.5px;
+  cursor: pointer;
+  transition: border-color .14s;
+}
+select.slider:hover, .sl-select:hover{ border-color: var(--line-hover); }
+select.slider option, .sl-select option{ background: var(--option-bg); color: var(--text); }
+
+input[type="range"].slider{
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 22px;
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+}
+input[type="range"].slider::-webkit-slider-runnable-track{
+  height: 4px;
+  border-radius: 999px;
+  background: linear-gradient(to right, var(--accent) 0, var(--accent) var(--p, 0%), var(--panel-3) var(--p, 0%), var(--panel-3) 100%);
+}
+input[type="range"].slider::-webkit-slider-thumb{
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  margin-top: -6px;
+  border-radius: 50%;
+  background: var(--thumb-bg);
+  border: 3px solid var(--accent);
+  box-shadow: 0 0 0 4px rgba(45,212,191,0.0), 0 1px 4px var(--thumb-shadow);
+  transition: box-shadow .14s;
+}
+input[type="range"].slider:hover::-webkit-slider-thumb,
+input[type="range"].slider:focus-visible::-webkit-slider-thumb{ box-shadow: 0 0 0 5px var(--accent-wash), 0 1px 4px var(--thumb-shadow); }
+input[type="range"].slider::-moz-range-track{ height: 4px; border-radius: 999px; background: var(--panel-3); }
+input[type="range"].slider::-moz-range-progress{ height: 4px; border-radius: 999px; background: var(--accent); }
+input[type="range"].slider::-moz-range-thumb{ width: 12px; height: 12px; border-radius: 50%; background: var(--thumb-bg); border: 3px solid var(--accent); }
+
+/* callouts */
+.callout{
+  margin: 0 0 12px;
+  padding: 9px 11px;
+  border-radius: var(--r-sm);
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+.callout--danger{ background: var(--danger-bg); border: 1px solid var(--danger-line); color: var(--danger-text); }
+
+/* ============================================================
+   Buttons
+   ============================================================ */
+
+.btn{
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  width: 100%;
+  height: 38px;
+  padding: 0 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: 9px;
+  background: var(--panel-2);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .14s, border-color .14s, transform .06s, box-shadow .14s;
+}
+.btn:hover:not(:disabled){ background: var(--panel-3); border-color: var(--line-hover); }
+.btn:active:not(:disabled){ transform: translateY(1px); }
+.btn:disabled{ opacity: .45; cursor: not-allowed; }
+
+/* numbered pipeline steps */
+.btn--primary, .btn--accent, #btnUndersample{ position: relative; }
+#btnTransform::before, #btnUndersample::before, #btnReconstruct::before{
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 700;
+  background: var(--step-chip-bg);
+  color: var(--text-2);
+}
+#btnTransform::before{ content: "1"; }
+#btnUndersample::before{ content: "2"; }
+#btnReconstruct::before{ content: "3"; }
+
+.btn--primary{ border-color: var(--accent-line); background: var(--accent-wash); color: var(--accent); }
+.btn--primary::before{ background: rgba(45,212,191,0.2) !important; color: var(--accent) !important; }
+.btn--primary:hover:not(:disabled){ background: rgba(45,212,191,0.2); border-color: var(--accent); }
+
+.btn--accent{
+  border-color: transparent;
+  background: linear-gradient(180deg, var(--grad-a1), var(--grad-a2));
+  color: var(--accent-ink);
+  box-shadow: 0 6px 18px var(--accent-btn-shadow);
+}
+.btn--accent::before{ background: var(--accent-chip-bg) !important; color: var(--accent-ink) !important; }
+.btn--accent:hover:not(:disabled){ background: linear-gradient(180deg, var(--grad-a1h), var(--grad-a2h)); border-color: transparent; }
+
+.btn--ghost{
+  height: 32px;
+  border-color: transparent;
+  background: transparent;
+  color: var(--text-3);
+  font-weight: 500;
+  font-size: 12px;
+}
+.btn--ghost:hover:not(:disabled){ background: rgba(248,113,113,0.1); border-color: transparent; color: var(--red); }
+
+.btn--small{ width: auto; flex: 1; height: 30px; padding: 0 10px; font-size: 12px; font-weight: 500; border-radius: 8px; }
+
+/* ============================================================
+   Input panel: dropzone + slice reel
+   ============================================================ */
+
+.dropzone{
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 16px 14px;
+  border: 1.5px dashed var(--line-strong);
+  border-radius: var(--r);
+  background: var(--panel-2);
+  color: var(--text-2);
+  text-align: center;
+  cursor: pointer;
+  transition: border-color .14s, background .14s;
+}
+.dropzone svg{ color: var(--accent); }
+.dropzone:hover, .dropzone:focus-visible{ border-color: var(--accent-line); background: var(--accent-wash); }
+.dropzone.is-dragover{ border-color: var(--accent); background: rgba(45,212,191,0.18); }
+.dropzone__label{ font-size: 13px; font-weight: 600; color: var(--text); }
+.dropzone__hint{ font-size: 11px; color: var(--text-3); }
+
+.reel{
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 14px;
+  padding: 11px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--panel-2);
+}
+.reel__play{
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: 50%;
+  background: var(--accent-wash);
+  color: var(--accent);
+  cursor: pointer;
+  transition: background .14s, transform .08s;
+}
+.reel__play:hover{ background: rgba(45,212,191,0.24); }
+.reel__play:active{ transform: scale(0.93); }
+.reel__icon{ width: 15px; height: 15px; fill: currentColor; }
+.reel__icon--stop{ display: none; }
+.reel.is-playing .reel__icon--play{ display: none; }
+.reel.is-playing .reel__icon--stop{ display: block; }
+.reel.is-playing .reel__play{ background: rgba(248,113,113,0.15); color: var(--red); }
+.reel__body{ flex: 1; min-width: 0; }
+.reel__label-row{ display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 7px; }
+.reel__label{ font-size: 12px; font-weight: 500; color: var(--text); }
+.reel__counter{ font-family: var(--font-mono); font-size: 10.5px; color: var(--text-3); }
+.reel__track{ height: 4px; border-radius: 999px; background: var(--panel-3); overflow: hidden; }
+.reel__fill{ height: 100%; width: 0; border-radius: 999px; background: linear-gradient(90deg, var(--accent-strong), var(--accent)); transition: width .18s ease; }
+.reel__track.is-busy .reel__fill{ width: 35%; animation: reelSlide 1.1s ease-in-out infinite; }
+@keyframes reelSlide{ 0%{ transform: translateX(-100%); } 100%{ transform: translateX(300%); } }
+.reel__status{ display: block; margin-top: 6px; font-family: var(--font-mono); font-size: 10px; color: var(--text-3); }
+.reel.is-playing .reel__status{ color: var(--accent); }
+
+/* ============================================================
+   Paint editor
+   ============================================================ */
+
+.paint-editor{
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--panel-2);
+}
+.paint-editor__canvas-wrap{
+  position: relative;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  overflow: hidden;
+  background: #05080C;
+  line-height: 0;
+}
+.paint-editor__canvas-wrap canvas{
+  width: 100%;
+  height: auto;
+  display: block;
+  image-rendering: pixelated;
+  cursor: crosshair;
+  touch-action: none;
+}
+.paint-editor__hint{ margin: 9px 0 0; font-size: 11px; line-height: 1.5; color: var(--text-3); }
+.paint-editor__actions{ display: flex; gap: 6px; margin-top: 10px; }
+.paint-editor__expand{
+  width: 100%;
+  margin-top: 8px;
+  padding: 7px;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color .14s, background .14s;
+}
+.paint-editor__expand:hover{ border-color: var(--accent-line); background: var(--accent-wash); }
+.paint-modal__body{ display: flex; gap: 20px; align-items: flex-start; }
+.paint-editor__canvas-wrap--large{ width: min(560px, 54vw); flex: none; }
+.paint-modal__controls{
+  flex: 1;
+  min-width: 200px;
+  padding: 15px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--panel-2);
+}
+
+/* ============================================================
+   Workspace: toolbar (title + tabs) and the stage
+   ============================================================ */
+
+.viewport-single{
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "title nav"
+    "stage stage";
+  align-items: center;
+  column-gap: 16px;
+  row-gap: 14px;
+  padding: 14px 18px 20px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow);
+  align-content: start;
+}
+
+.viewer-title{
+  grid-area: title;
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.viewer-nav{
+  grid-area: nav;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.viewer-nav__arrow{
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-2);
+  color: var(--text-2);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background .14s, color .14s;
+}
+.viewer-nav__arrow:hover{ background: var(--panel-3); color: var(--text); }
+
+.viewer-nav__steps{
+  display: flex;
+  gap: 3px;
+  padding: 3px;
+  background: var(--well);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.viewer-nav__step{
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 28px;
+  padding: 0 13px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-2);
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background .14s, color .14s, border-color .14s;
+}
+.viewer-nav__step:hover:not(.is-active){ color: var(--text); background: var(--panel-2); }
+.viewer-nav__step.is-active{ background: var(--panel-3); border-color: var(--line-strong); color: var(--text); font-weight: 600; }
+.viewer-nav__step.is-complete::before{
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 0 2px rgba(74,222,128,0.18);
+}
+.viewer-nav__step[data-page="pageSound"]::after{
+  content: "";
+  width: 12px;
+  height: 12px;
+  background: currentColor;
+  opacity: .8;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M3 10v4h4l5 4V6L7 10H3zm13.5 2a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4zM14 3.2v2.1a7 7 0 0 1 0 13.4v2.1a9 9 0 0 0 0-17.6z'/%3E%3C/svg%3E") center / contain no-repeat;
+          mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M3 10v4h4l5 4V6L7 10H3zm13.5 2a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4zM14 3.2v2.1a7 7 0 0 1 0 13.4v2.1a9 9 0 0 0 0-17.6z'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+.viewer-stage{
+  grid-area: stage;
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  padding: 22px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--r);
+  background:
+    linear-gradient(var(--stage-grid) 1px, transparent 1px) 0 0 / 24px 24px,
+    linear-gradient(90deg, var(--stage-grid) 1px, transparent 1px) 0 0 / 24px 24px,
+    var(--well);
+}
+.viewer-stage.is-wide{ padding: 0; border: none; background: transparent; }
+
+.viewer-page{ display: none; }
+.viewer-page.is-active{ display: block; }
+
+/* single-image pages: one centred square */
+.viewer-page:not(.viewer-page--pair):not(.viewer-page--wide) .viewcell__frame{
+  width: min(100%, 600px);
+  margin: 0 auto;
+}
+
+/* pair pages: two equal columns; every cell has the SAME header height so
+   the two pictures always sit on one line, with or without the colour toggle */
+.viewer-page--pair.is-active{
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 22px;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.viewer-pair-cell{
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.viewer-pair-cell__label-row{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  height: 30px;            /* fixed: this is what keeps E and F aligned */
+}
+
+.viewer-pair-cell__label{
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.viewer-pair-cell__label b{
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  background: var(--panel-3);
+  border: 1px solid var(--line-strong);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 600;
+}
+
+.colormap-toggle{
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-2);
+  flex: none;
+}
+.colormap-toggle__btn{
+  height: 24px;
+  padding: 0 11px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-3);
+  font-size: 11.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background .14s, color .14s;
+}
+.colormap-toggle__btn.is-active{ background: var(--panel-3); color: var(--text); }
+.colormap-toggle__btn:hover:not(.is-active){ color: var(--text); }
+
+/* the picture frames */
+.viewcell__frame{
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  overflow: hidden;
+  background: #000;
+  box-shadow: 0 12px 34px var(--frame-shadow);
+}
+.viewcell__frame canvas{
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+.viewcell__empty{
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 20px;
+  font-size: 12px;
+  color: #8B98A9;            /* sits on the black frame in both themes */
+  text-align: center;
+  pointer-events: none;
+}
+.viewcell__frame--clickable{ cursor: zoom-in; }
+.viewcell__frame--clickable:hover{ border-color: var(--line-strong); }
+.viewcell__zoom-hint{
+  position: absolute;
+  inset: auto 0 0 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px 0 9px;
+  font-size: 11px;
+  color: #EAF1F8;
+  background: linear-gradient(transparent, rgba(0,0,0,0.75));
+  opacity: 0;
+  transition: opacity .15s;
+  pointer-events: none;
+}
+.viewcell__frame--clickable:hover .viewcell__zoom-hint{ opacity: 1; }
+
+/* scanning shimmer while a step is running */
+.viewcell__frame.is-scanning{ border-color: var(--accent); }
+.viewcell__frame.is-scanning::after{
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(transparent, rgba(45,212,191,0.2), transparent);
+  animation: scanSweep 1.4s linear infinite;
+  pointer-events: none;
+}
+@keyframes scanSweep{ 0%{ transform: translateY(-100%); } 100%{ transform: translateY(100%); } }
+
+/* ============================================================
+   Results rail: metrics, noise review, log
+   ============================================================ */
+
+.metrics{
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin: 0;
+}
+.metrics__row{
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--line-soft);
+  border-radius: 10px;
+  background: var(--panel-2);
+}
+.metrics__row dt{
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+.metrics__row dd{
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+.metrics__row--highlight{ background: linear-gradient(180deg, rgba(45,212,191,0.10), rgba(45,212,191,0.04)); border-color: rgba(45,212,191,0.28); }
+.metrics__row--highlight dd{ font-size: 18px; color: var(--accent); }
+#noiseReadout .metrics__row:first-child{ grid-column: 1 / -1; }
+#noiseReadout .metrics__row:last-child{ grid-column: 1 / -1; }
+#noiseReadout .metrics__row--highlight{ background: linear-gradient(180deg, rgba(245,165,36,0.12), rgba(245,165,36,0.04)); border-color: rgba(245,165,36,0.32); }
+#noiseReadout .metrics__row--highlight dd{ color: var(--amber); }
+
+.panel--log{ display: flex; flex-direction: column; min-height: 0; }
+.log{
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow-y: auto;
+  max-height: 260px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.55;
+}
+.log__entry{
+  padding: 4px 0 4px 10px;
+  border-left: 2px solid var(--accent-strong);
+  color: var(--text-2);
+}
+.log__entry--muted{ color: var(--text-3); border-left-color: var(--line-strong); }
+.log__entry--warn{ border-left-color: var(--amber); color: var(--amber); }
+
+/* ============================================================
+   Footer
+   ============================================================ */
+
+.console__footer{
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  max-width: 1880px;
+  margin: 0 auto;
+  padding: 14px 24px 22px;
+  font-size: 11px;
+  color: var(--text-3);
+}
+
+/* ============================================================
+   Modals (lightbox + large paint editor)
+   ============================================================ */
+
+.modal{
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.modal.is-open{ display: flex; }
+.modal__backdrop{ position: absolute; inset: 0; background: rgba(3,5,8,0.72); backdrop-filter: blur(4px); }
+.modal__content{
+  position: relative;
+  z-index: 1;
+  max-width: 1100px;
+  max-height: 92vh;
+  width: 100%;
+  overflow: auto;
+  background: var(--panel);
+  border: 1px solid var(--line-strong);
+  border-radius: 16px;
+  box-shadow: 0 30px 80px rgba(0,0,0,0.6);
+}
+.modal__header{
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--line);
+}
+.modal__title{ flex: 1; margin: 0; font-size: 14px; font-weight: 600; }
+.modal__zoom-controls{ display: flex; align-items: center; gap: 6px; }
+.modal__zoom-btn{
+  min-width: 30px;
+  height: 30px;
+  padding: 0 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: var(--panel-2);
+  color: var(--text);
+  font-size: 15px;
+  cursor: pointer;
+  transition: background .14s;
+}
+.modal__zoom-btn--wide{ font-size: 11.5px; }
+.modal__zoom-btn:hover{ background: var(--panel-3); }
+.modal__zoom-level{ min-width: 46px; text-align: center; font-family: var(--font-mono); font-size: 11px; color: var(--text-2); }
+.modal__close{
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-2);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+.modal__close:hover{ background: var(--panel-3); color: var(--text); }
+.modal__body{ display: flex; gap: 20px; padding: 20px; align-items: flex-start; flex-wrap: wrap; }
+.modal__image-wrap{
+  flex: 1;
+  min-width: 280px;
+  max-height: 68vh;
+  overflow: auto;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: #05080C;       /* images stay on black in both themes */
+  padding: 12px;
+}
+.modal__image-wrap canvas{ display: block; image-rendering: pixelated; transform-origin: center center; }
+.modal__chart-wrap{
+  flex: none;
+  width: 340px;
+  padding: 15px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--panel-2);
+}
+.modal__chart-title{
+  margin: 0 0 10px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.modal__chart-wrap canvas{
+  width: 100%;
+  height: auto;
+  display: block;
+  border-radius: var(--r-sm);
+  background: #0B1017;       /* the modal charts are drawn for a dark background */
+  border: 1px solid var(--line);
+}
+.modal__chart-note{ margin: 10px 0 0; font-size: 11px; line-height: 1.5; color: var(--text-3); }
+
+/* ============================================================
+   Responsive
+   ============================================================ */
+
+@media (max-width: 1440px){
+  .console__body{ grid-template-columns: 310px minmax(0, 1fr); }
+  .rail--readout{
+    grid-column: 1 / -1;
+    position: static;
+    max-height: none;
+    flex-direction: row;
+    align-items: stretch;
+    overflow: visible;
+  }
+  .rail--readout > .panel{ flex: 1 1 0; min-width: 0; }
+  .rail--readout > .panel--log{ flex: 1.3 1 0; }
+}
+
+@media (max-width: 1080px){
+  .console__body{ grid-template-columns: minmax(0, 1fr); padding: 14px; }
+  .rail{ position: static; max-height: none; overflow: visible; grid-column: 1; }
+  .viewport-single{ grid-column: 1; grid-row: 1; }
+  .rail:not(.rail--readout){ grid-row: 2; }
+  .rail--readout{ grid-row: 3; flex-direction: column; }
+  .panel--actions{ position: static; box-shadow: var(--shadow); }
+  .viewport-single{ grid-template-columns: minmax(0,1fr); grid-template-areas: "title" "nav" "stage"; }
+  .viewer-nav{ overflow-x: auto; }
+}
+
+@media (max-width: 680px){
+  .console__header{ padding: 0 14px; }
+  .brand__subtitle{ display: none; }
+  .viewer-stage{ padding: 12px; }
+  .viewer-page--pair.is-active{ grid-template-columns: 1fr; }
+  .modal__body{ padding: 14px; }
+  .modal__chart-wrap{ width: 100%; }
+  .paint-modal__body{ flex-direction: column; }
+  .paint-editor__canvas-wrap--large{ width: 100%; }
+  .console__footer{ flex-direction: column; gap: 4px; padding: 12px 14px 18px; }
+}
+
+@media (prefers-reduced-motion: reduce){
+  *{ animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
+}
+
+</style>
 </head>
-<body>
+<body data-ui="2-single">
 
 <div class="console">
 
-  <!-- ============ HEADER ============ -->
+  <!-- ============ TOP BAR ============ -->
   <header class="console__header">
     <div class="brand">
       <span class="brand__mark" aria-hidden="true">
-        <svg viewBox="0 0 32 32" width="26" height="26">
-          <circle cx="16" cy="16" r="14" fill="none" stroke="currentColor" stroke-width="1.4"/>
-          <line x1="16" y1="2" x2="16" y2="30" stroke="currentColor" stroke-width="1" opacity="0.5"/>
-          <line x1="2" y1="16" x2="30" y2="16" stroke="currentColor" stroke-width="1" opacity="0.5"/>
-          <line x1="5.5" y1="5.5" x2="26.5" y2="26.5" stroke="currentColor" stroke-width="1" opacity="0.3"/>
-          <line x1="26.5" y1="5.5" x2="5.5" y2="26.5" stroke="currentColor" stroke-width="1" opacity="0.3"/>
+        <svg viewBox="0 0 32 32">
+          <circle cx="16" cy="16" r="13" fill="none" stroke="currentColor" stroke-width="2"/>
+          <line x1="16" y1="3" x2="16" y2="29" stroke="currentColor" stroke-width="1.6" opacity="0.65"/>
+          <line x1="3" y1="16" x2="29" y2="16" stroke="currentColor" stroke-width="1.6" opacity="0.65"/>
+          <circle cx="16" cy="16" r="4.5" fill="currentColor"/>
         </svg>
       </span>
       <div>
         <h1 class="brand__title">K-SPACE</h1>
-        <p class="brand__subtitle">undersampling &amp; reconstruction console</p>
+        <p class="brand__subtitle">Undersampling &amp; reconstruction studio</p>
       </div>
     </div>
-    <div class="header__status" id="statusLine">
-      <span class="status__dot" id="statusDot" aria-hidden="true"></span>
-      <span id="statusText">awaiting image</span>
+    <div class="header__right">
+      <button type="button" class="theme-toggle" id="themeToggle" aria-label="Switch to light mode" title="Switch to light mode">
+        <svg class="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+        <svg class="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+      </button>
+      <div class="header__status" id="statusLine">
+        <span class="status__dot" id="statusDot" aria-hidden="true"></span>
+        <span id="statusText">awaiting image</span>
+      </div>
     </div>
   </header>
 
   <!-- ============ MAIN GRID ============ -->
   <main class="console__body">
 
-    <!-- ---------- LEFT: control rail ---------- -->
+    <!-- ---------- LEFT: controls ---------- -->
     <aside class="rail">
 
       <section class="panel">
-        <h2 class="panel__eyebrow">01 — input</h2>
+        <h2 class="panel__eyebrow"><span class="panel__num">01</span>Input</h2>
 
-        <div class="segmented" role="radiogroup" aria-label="input source" style="margin-bottom: 12px;">
-          <button type="button" class="segmented__option is-active" data-source="upload" role="radio" aria-checked="true">upload photo</button>
-          <button type="button" class="segmented__option" data-source="dataset" role="radio" aria-checked="false">select dataset</button>
+        <div class="segmented" role="radiogroup" aria-label="input source" style="--cols:2; margin-bottom: 14px;">
+          <button type="button" class="segmented__option is-active" data-source="upload" role="radio" aria-checked="true">Upload photo</button>
+          <button type="button" class="segmented__option" data-source="dataset" role="radio" aria-checked="false">Select dataset</button>
         </div>
 
         <div id="uploadSourceBlock">
           <label class="dropzone" id="dropzone" for="fileInput" tabindex="0">
             <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
-              <path d="M12 16V4M12 4L7 9M12 4L17 9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+              <path d="M12 16V4M12 4L7 9M12 4L17 9" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
             </svg>
             <span class="dropzone__label">Load an image</span>
-            <span class="dropzone__hint">click, or drop a file — resized to 256×256</span>
+            <span class="dropzone__hint">click or drop a file — resized to 256×256</span>
           </label>
           <input type="file" id="fileInput" accept="image/*" hidden>
         </div>
 
         <div id="datasetSourceBlock" style="display: none;">
           <div class="field">
-            <span class="field__label">dataset scan</span>
-            <select id="datasetSelect" class="slider" style="width: 100%; margin-top: 6px;">
+            <span class="field__label">Dataset scan</span>
+            <select id="datasetSelect" class="slider">
               <option value="">loading datasets…</option>
             </select>
           </div>
 
           <div class="field" id="sliceField" style="display: none;">
             <div class="field__row">
-              <span class="field__label">slice</span>
+              <span class="field__label">Slice</span>
               <span class="field__value" id="sliceValue">—</span>
             </div>
             <input type="range" id="sliceSlider" min="0" max="0" step="1" value="0" class="slider">
           </div>
 
-          <button type="button" class="btn" id="btnLoadDataset" style="margin-top: 8px;">
-            <span>load dataset slice</span>
+          <button type="button" class="btn" id="btnLoadDataset">
+            <span>Load dataset slice</span>
           </button>
 
           <div class="reel" id="sliceVideoReel">
@@ -89,7 +1334,7 @@
             </button>
             <div class="reel__body">
               <div class="reel__label-row">
-                <span class="reel__label">reconstructed slice video</span>
+                <span class="reel__label">Reconstructed slice video</span>
                 <span class="reel__counter" id="sliceVideoCounter"></span>
               </div>
               <div class="reel__track" id="sliceVideoTrack">
@@ -102,16 +1347,22 @@
       </section>
 
       <section class="panel">
-        <h2 class="panel__eyebrow">02 — sampling pattern</h2>
+        <h2 class="panel__eyebrow"><span class="panel__num">02</span>Sampling pattern</h2>
 
         <div class="field">
-          <span class="field__label">trajectory</span>
-          <div class="segmented" role="radiogroup" aria-label="sampling trajectory">
-            <button type="button" class="segmented__option is-active" data-pattern="cartesian" role="radio" aria-checked="true">cartesian</button>
-            <button type="button" class="segmented__option" data-pattern="radial" role="radio" aria-checked="false">radial</button>
-            <button type="button" class="segmented__option" data-pattern="random" role="radio" aria-checked="false">random</button>
-            <button type="button" class="segmented__option" data-pattern="custom" role="radio" aria-checked="false">paint</button>
-            <button type="button" class="segmented__option" data-pattern="full" role="radio" aria-checked="false">full (no undersampling)</button>
+          <span class="field__label" id="patternLabel">Method</span>
+          <div class="menu" id="patternMenu">
+            <button type="button" class="menu__trigger" id="patternTrigger" aria-haspopup="menu" aria-expanded="false" aria-labelledby="patternLabel patternTriggerText">
+              <span class="menu__text" id="patternTriggerText">Cartesian</span>
+              <svg class="menu__chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+            </button>
+            <div class="menu__list" id="patternList" role="menu" aria-labelledby="patternLabel">
+              <button type="button" class="segmented__option menu__item is-active" data-pattern="cartesian" role="menuitemradio" aria-checked="true"><span class="menu__name">Cartesian</span><span class="menu__desc">skips whole k-space lines</span></button>
+              <button type="button" class="segmented__option menu__item" data-pattern="radial" role="menuitemradio" aria-checked="false"><span class="menu__name">Radial</span><span class="menu__desc">spokes through the centre</span></button>
+              <button type="button" class="segmented__option menu__item" data-pattern="random" role="menuitemradio" aria-checked="false"><span class="menu__name">Random</span><span class="menu__desc">scattered points</span></button>
+              <button type="button" class="segmented__option menu__item" data-pattern="custom" role="menuitemradio" aria-checked="false"><span class="menu__name">Paint mask</span><span class="menu__desc">draw your own</span></button>
+              <button type="button" class="segmented__option menu__item" data-pattern="full" role="menuitemradio" aria-checked="false"><span class="menu__name">No undersampling</span><span class="menu__desc">keeps all the data</span></button>
+            </div>
           </div>
         </div>
 
@@ -125,7 +1376,7 @@
 
         <div class="field" id="acsField">
           <div class="field__row">
-            <span class="field__label">autocalibration lines / spokes</span>
+            <span class="field__label">Autocalibration lines / spokes</span>
             <span class="field__value" id="acsValue">12</span>
           </div>
           <input type="range" id="acsSlider" min="0" max="40" step="2" value="12" class="slider">
@@ -133,7 +1384,7 @@
 
         <div class="field paint-editor" id="paintField" style="display: none;">
           <div class="field__row">
-            <span class="field__label">paint k-space to sample</span>
+            <span class="field__label">Paint k-space to sample</span>
             <span class="field__value" id="paintDensityValue">0%</span>
           </div>
           <div class="field__row field__row--sub">
@@ -146,7 +1397,7 @@
           <button type="button" class="paint-editor__expand" id="btnPaintExpand">⤢ open large canvas</button>
           <p class="paint-editor__hint">drag to paint — left click adds, right click / shift+click erases. the grid auto-matches the loaded k-space, so masks work for uploads and .h5 scans alike.</p>
           <div class="field__row" style="margin-top: 8px;">
-            <span class="field__label">brush size</span>
+            <span class="field__label">Brush size</span>
             <span class="field__value" id="paintBrushValue">10</span>
           </div>
           <input type="range" id="paintBrushSize" min="2" max="40" step="1" value="10" class="slider">
@@ -163,7 +1414,7 @@
           <div class="modal__backdrop" id="paintModalBackdrop"></div>
           <div class="modal__content" role="dialog" aria-modal="true" aria-labelledby="paintModalTitle">
             <div class="modal__header">
-              <h3 class="modal__title" id="paintModalTitle">paint k-space to sample</h3>
+              <h3 class="modal__title" id="paintModalTitle">Paint k-space to sample</h3>
               <span class="field__value field__value--soft" id="paintGridValueLarge">256×256</span>
               <span class="field__value" id="paintDensityValueLarge">0%</span>
               <button type="button" class="modal__close" id="btnPaintModalClose" aria-label="close">×</button>
@@ -173,9 +1424,9 @@
                 <canvas id="canvasPaintMaskLarge" width="256" height="256"></canvas>
               </div>
               <div class="paint-modal__controls">
-                <p class="paint-editor__hint">drag to paint — left click adds, right click / shift+click erases. the grid auto-matches the loaded k-space, so masks work for uploads and .h5 scans alike.</p>
+                <p class="paint-editor__hint" style="margin-top:0">drag to paint — left click adds, right click / shift+click erases. the grid auto-matches the loaded k-space, so masks work for uploads and .h5 scans alike.</p>
                 <div class="field__row" style="margin-top: 10px;">
-                  <span class="field__label">brush size</span>
+                  <span class="field__label">Brush size</span>
                   <span class="field__value" id="paintBrushValueLarge">10</span>
                 </div>
                 <input type="range" id="paintBrushSizeLarge" min="2" max="60" step="1" value="10" class="slider">
@@ -184,50 +1435,70 @@
                   <button type="button" class="btn btn--small" id="btnPaintFillLarge">fill all</button>
                   <button type="button" class="btn btn--small" id="btnPaintInvertLarge">invert</button>
                 </div>
-                <button type="button" class="btn btn--small" id="btnPaintDoneLarge" style="margin-top: 14px;">✓ done</button>
+                <button type="button" class="btn btn--primary" id="btnPaintDoneLarge" style="margin-top: 14px;">✓ Done</button>
               </div>
             </div>
           </div>
         </div>
       </section>
 
+      <section class="panel" id="noisePanel">
+        <h2 class="panel__eyebrow"><span class="panel__num">03</span>Noise simulation</h2>
+
+        <div class="field">
+          <div class="field__row">
+            <span class="field__label" id="noiseLabel">Noise level</span>
+            <span class="field__value" id="noiseValue">off</span>
+          </div>
+          <input type="range" id="noiseSlider" min="0" max="30" step="0.5" value="0" class="slider" autocomplete="off">
+          <p class="paint-editor__hint" id="noiseHint">Random complex Gaussian noise on the measured k-space points. Level = % of the signal RMS; 0 = off.</p>
+        </div>
+
+        <p class="callout callout--danger" id="noiseStatus">⚠ Noise controls are NOT active: static/js/controls.js is outdated, cached, or failed to load. Copy the new controls.js, restart the server, then reload (Ctrl+Shift+R).</p>
+
+        <div class="paint-editor__actions">
+          <button type="button" class="btn btn--small" id="btnNoiseReroll">New noise sample</button>
+        </div>
+      </section>
+
       <section class="panel panel--actions">
-        <h2 class="panel__eyebrow">03 — run</h2>
+        <h2 class="panel__eyebrow"><span class="panel__num">04</span>Run</h2>
         <button type="button" class="btn btn--primary" id="btnTransform">
-          <span>forward FFT</span>
+          <span>Forward FFT</span>
         </button>
         <button type="button" class="btn" id="btnUndersample">
-          <span>apply undersampling mask</span>
+          <span>Apply undersampling mask</span>
         </button>
         <button type="button" class="btn btn--accent" id="btnReconstruct">
-          <span>inverse FFT — reconstruct</span>
+          <span>Inverse FFT — reconstruct</span>
         </button>
         <button type="button" class="btn btn--ghost" id="btnReset">
-          <span>reset session</span>
+          <span>Reset session</span>
         </button>
       </section>
 
     </aside>
 
-    <!-- ---------- CENTER: single-view viewport ---------- -->
+    <!-- ---------- CENTER: workspace ---------- -->
     <section class="viewport-single">
+
+      <h2 class="viewer-title" id="viewerTitle">A · Source image</h2>
 
       <div class="viewer-nav">
         <button type="button" class="viewer-nav__arrow" id="viewerPrev" aria-label="previous step">‹</button>
         <div class="viewer-nav__steps" id="viewerSteps" role="tablist">
-          <button type="button" class="viewer-nav__step is-active" data-page="pageOriginal" role="tab" aria-selected="true">source</button>
+          <button type="button" class="viewer-nav__step is-active" data-page="pageOriginal" role="tab" aria-selected="true">Source</button>
           <button type="button" class="viewer-nav__step" data-page="pageKspaceFull" role="tab" aria-selected="false">k-space</button>
-          <button type="button" class="viewer-nav__step" data-page="pageMaskUnder" role="tab" aria-selected="false">sampling</button>
-          <button type="button" class="viewer-nav__step" data-page="pageReconError" role="tab" aria-selected="false">result</button>
+          <button type="button" class="viewer-nav__step" data-page="pageMaskUnder" role="tab" aria-selected="false">Sampling</button>
+          <button type="button" class="viewer-nav__step" data-page="pageReconError" role="tab" aria-selected="false">Result</button>
+          <button type="button" class="viewer-nav__step" data-page="pageSound" role="tab" aria-selected="false">Sound</button>
         </div>
         <button type="button" class="viewer-nav__arrow" id="viewerNext" aria-label="next step">›</button>
       </div>
 
-      <h2 class="viewer-title" id="viewerTitle">A — source image</h2>
-
       <div class="viewer-stage" id="viewerStage">
 
-        <div class="viewer-page is-active" id="pageOriginal" data-page="pageOriginal" data-title="A — source image">
+        <div class="viewer-page is-active" id="pageOriginal" data-page="pageOriginal" data-title="A · Source image">
           <div class="viewcell__frame viewcell__frame--clickable" data-canvas-id="canvasOriginal" data-kind="histogram" data-title="source image">
             <canvas id="canvasOriginal" width="256" height="256"></canvas>
             <div class="viewcell__empty" id="emptyOriginal">no image loaded</div>
@@ -235,7 +1506,7 @@
           </div>
         </div>
 
-        <div class="viewer-page" id="pageKspaceFull" data-page="pageKspaceFull" data-title="B — k-space, full sampling">
+        <div class="viewer-page" id="pageKspaceFull" data-page="pageKspaceFull" data-title="B · k-space, full sampling">
           <div class="viewcell__frame viewcell__frame--clickable" data-canvas-id="canvasKspaceFull" data-kind="profile" data-title="k-space — full sampling">
             <canvas id="canvasKspaceFull" width="256" height="256"></canvas>
             <div class="viewcell__empty" id="emptyKspaceFull">run forward FFT</div>
@@ -243,11 +1514,12 @@
           </div>
         </div>
 
-        <!-- These two come from the same "apply mask" click, so they're shown
-             together instead of auto-switching between them. -->
-        <div class="viewer-page viewer-page--pair" id="pageMaskUnder" data-page="pageMaskUnder" data-title="C/D — sampling mask & undersampled k-space">
+        <!-- These two come from the same "apply mask" click, so they're shown together. -->
+        <div class="viewer-page viewer-page--pair" id="pageMaskUnder" data-page="pageMaskUnder" data-title="C · D · Sampling">
           <div class="viewer-pair-cell">
-            <span class="viewer-pair-cell__label">D — sampling mask</span>
+            <div class="viewer-pair-cell__label-row">
+              <span class="viewer-pair-cell__label"><b>D</b>Sampling mask</span>
+            </div>
             <div class="viewcell__frame viewcell__frame--clickable" data-canvas-id="canvasMask" data-kind="density" data-title="sampling mask">
               <canvas id="canvasMask" width="256" height="256"></canvas>
               <div class="viewcell__empty" id="emptyMask">apply a mask</div>
@@ -255,7 +1527,9 @@
             </div>
           </div>
           <div class="viewer-pair-cell">
-            <span class="viewer-pair-cell__label">C — undersampled k-space</span>
+            <div class="viewer-pair-cell__label-row">
+              <span class="viewer-pair-cell__label"><b>C</b>Undersampled k-space</span>
+            </div>
             <div class="viewcell__frame viewcell__frame--clickable" data-canvas-id="canvasKspaceUnder" data-kind="profile" data-title="k-space — undersampled">
               <canvas id="canvasKspaceUnder" width="256" height="256"></canvas>
               <div class="viewcell__empty" id="emptyKspaceUnder">apply a mask</div>
@@ -264,12 +1538,11 @@
           </div>
         </div>
 
-        <!-- These two come from the same "reconstruct" click, so they're
-             shown together instead of auto-switching between them. -->
-        <div class="viewer-page viewer-page--pair" id="pageReconError" data-page="pageReconError" data-title="E/F — reconstructed image & error map">
+        <!-- These two come from the same "reconstruct" click, so they're shown together. -->
+        <div class="viewer-page viewer-page--pair" id="pageReconError" data-page="pageReconError" data-title="E · F · Result">
           <div class="viewer-pair-cell">
             <div class="viewer-pair-cell__label-row">
-              <span class="viewer-pair-cell__label">E — reconstructed image</span>
+              <span class="viewer-pair-cell__label"><b>E</b>Reconstructed image</span>
               <div class="colormap-toggle" id="reconColormapToggle">
                 <button type="button" class="colormap-toggle__btn is-active" data-colormap="gray">gray</button>
                 <button type="button" class="colormap-toggle__btn" data-colormap="jet">color</button>
@@ -282,7 +1555,9 @@
             </div>
           </div>
           <div class="viewer-pair-cell">
-            <span class="viewer-pair-cell__label">F — error map |orig − recon|</span>
+            <div class="viewer-pair-cell__label-row">
+              <span class="viewer-pair-cell__label"><b>F</b>Error map |orig − recon|</span>
+            </div>
             <div class="viewcell__frame viewcell__frame--clickable" data-canvas-id="canvasError" data-kind="error-histogram" data-title="error map |orig − recon|">
               <canvas id="canvasError" width="256" height="256"></canvas>
               <div class="viewcell__empty" id="emptyError">reconstruct to view</div>
@@ -291,16 +1566,23 @@
           </div>
         </div>
 
+        <!-- Sound lab: built by static/js/sonify.js -->
+        <div class="viewer-page viewer-page--wide" id="pageSound" data-page="pageSound" data-title="Sound lab — hear the data">
+          <div id="soundLab">
+            <p class="callout callout--danger">⚠ The sound lab did not load: static/js/sonify.js is missing or outdated. Copy the new sonify.js, restart the server, then reload (Ctrl+Shift+R).</p>
+          </div>
+        </div>
+
       </div>
     </section>
 
-    <!-- ---------- RIGHT: readout rail ---------- -->
+    <!-- ---------- RIGHT: results ---------- -->
     <aside class="rail rail--readout">
       <section class="panel">
-        <h2 class="panel__eyebrow">readout</h2>
+        <h2 class="panel__eyebrow">Readout</h2>
         <dl class="metrics">
           <div class="metrics__row">
-            <dt>sampling density</dt>
+            <dt>Sampling density</dt>
             <dd id="metricDensity">—</dd>
           </div>
           <div class="metrics__row">
@@ -322,8 +1604,34 @@
         </dl>
       </section>
 
+      <section class="panel" id="noiseReadout">
+        <h2 class="panel__eyebrow">Noise review</h2>
+        <dl class="metrics">
+          <div class="metrics__row">
+            <dt>Noise level · approx. SNR</dt>
+            <dd id="metricNoise">—</dd>
+          </div>
+          <div class="metrics__row">
+            <dt>PSNR · no noise</dt>
+            <dd id="metricPSNRClean">—</dd>
+          </div>
+          <div class="metrics__row">
+            <dt>MSE · no noise</dt>
+            <dd id="metricMSEClean">—</dd>
+          </div>
+          <div class="metrics__row">
+            <dt>NRMSE · no noise</dt>
+            <dd id="metricNRMSEClean">—</dd>
+          </div>
+          <div class="metrics__row metrics__row--highlight">
+            <dt>PSNR lost to noise</dt>
+            <dd id="metricPSNRDrop">—</dd>
+          </div>
+        </dl>
+      </section>
+
       <section class="panel panel--log">
-        <h2 class="panel__eyebrow">log</h2>
+        <h2 class="panel__eyebrow">Log</h2>
         <ol class="log" id="logList" aria-live="polite">
           <li class="log__entry log__entry--muted">console idle. load an image to begin.</li>
         </ol>
@@ -333,11 +1641,12 @@
   </main>
 
   <footer class="console__footer">
-    <span>computation runs locally on the FastAPI backend</span>
-    <span class="console__footer-sig">mask grid follows k-space shape · NumPy FFT</span>
+    <span>Computation runs locally on the FastAPI backend · NumPy FFT</span>
+    <span>Mask grid follows k-space shape</span>
   </footer>
 
 </div>
+
 <div class="modal" id="imageModal" aria-hidden="true">
   <div class="modal__backdrop" id="modalBackdrop"></div>
   <div class="modal__content" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
@@ -364,13 +1673,1606 @@
   </div>
 </div>
 
-<script src="../static/js/canvasRender.js"></script>
-<script src="../static/js/viewer.js"></script>
-<script src="../static/js/controls.js"></script>
-<script src="../static/js/paint.js"></script>
-<script src="../static/js/main.js"></script>
-<script src="../static/js/sliceVideo.js"></script>
-<script src="../static/js/modal.js"></script>
+<script src="../static/js/canvasRender.js?v=ui2"></script>
+<script>
+// Single-view viewport: shows exactly one "page" at a time. Most pages hold
+// one image; two pages (mask+undersampled k-space, recon+error) hold a pair,
+// because those two results come from the same button click and showing
+// them together (rather than auto-switching between them a moment apart)
+// avoids the "jumbled, everything happens in a millisecond" feeling.
+// The "sound" page is a wide page that hosts the sonification lab.
+//
+// controls.js / main.js still call showStep(canvasId) with the individual
+// canvas id right after rendering it, same as before — this file maps that
+// canvas id to whichever page contains it, so no other file needed to change.
 
+const CANVAS_TO_PAGE = {
+    canvasOriginal: "pageOriginal",
+    canvasKspaceFull: "pageKspaceFull",
+    canvasMask: "pageMaskUnder",
+    canvasKspaceUnder: "pageMaskUnder",
+    canvasRecon: "pageReconError",
+    canvasError: "pageReconError",
+};
+
+const viewerTitleEl = document.getElementById("viewerTitle");
+const viewerStageEl = document.getElementById("viewerStage");
+const viewerPrevBtn = document.getElementById("viewerPrev");
+const viewerNextBtn = document.getElementById("viewerNext");
+const viewerStepButtons = document.querySelectorAll(".viewer-nav__step");
+
+// The tabs in the toolbar define the pages (and their order), so adding a
+// tab + a page in the HTML is all it takes to add a view.
+const VIEWER_PAGES = Array.from(viewerStepButtons).map((btn) => btn.dataset.page);
+
+let currentPageIndex = 0;
+
+function showPage(pageId) {
+    const index = VIEWER_PAGES.indexOf(pageId);
+    if (index === -1) return;
+    currentPageIndex = index;
+
+    document.querySelectorAll("#viewerStage .viewer-page").forEach((page) => {
+        const isActive = page.dataset.page === pageId;
+        page.classList.toggle("is-active", isActive);
+        if (isActive) {
+            viewerTitleEl.textContent = page.dataset.title || pageId;
+        }
+    });
+
+    const activePage = document.getElementById(pageId);
+    viewerStageEl.classList.toggle("is-pair", !!(activePage && activePage.classList.contains("viewer-page--pair")));
+    viewerStageEl.classList.toggle("is-wide", !!(activePage && activePage.classList.contains("viewer-page--wide")));
+
+    viewerStepButtons.forEach((btn) => {
+        const isActive = btn.dataset.page === pageId;
+        btn.classList.toggle("is-active", isActive);
+        btn.setAttribute("aria-selected", isActive ? "true" : "false");
+    });
+}
+
+// Called by controls.js / main.js with a canvas id (e.g. "canvasRecon") —
+// resolves it to whichever page contains that canvas and shows that page.
+function showStep(canvasId) {
+    const pageId = CANVAS_TO_PAGE[canvasId];
+    if (pageId) showPage(pageId);
+}
+
+viewerStepButtons.forEach((btn) => {
+    btn.addEventListener("click", () => showPage(btn.dataset.page));
+});
+
+viewerPrevBtn.addEventListener("click", () => {
+    const newIndex = Math.max(0, currentPageIndex - 1);
+    showPage(VIEWER_PAGES[newIndex]);
+});
+
+viewerNextBtn.addEventListener("click", () => {
+    const newIndex = Math.min(VIEWER_PAGES.length - 1, currentPageIndex + 1);
+    showPage(VIEWER_PAGES[newIndex]);
+});
+
+// ---------------------------------------------------------------------------
+// UI polish (purely visual; nothing else depends on it)
+// ---------------------------------------------------------------------------
+(function uiPolish() {
+    // 1) filled track on every range slider (CSS reads --p)
+    const sliders = Array.from(document.querySelectorAll('input[type="range"].slider'));
+    const paintSlider = (s) => {
+        const min = parseFloat(s.min) || 0;
+        const max = parseFloat(s.max) || 0;
+        const p = max > min ? ((parseFloat(s.value) - min) / (max - min)) * 100 : 0;
+        s.style.setProperty("--p", `${Math.max(0, Math.min(100, p))}%`);
+    };
+    sliders.forEach((s) => {
+        s.addEventListener("input", () => paintSlider(s));
+        paintSlider(s);
+    });
+    setInterval(() => sliders.forEach(paintSlider), 400);   // catches values set from code (reset, slice count)
+
+    // 2) a green dot on each tab once its picture exists
+    const READY_MARKER = {
+        pageOriginal: "emptyOriginal",
+        pageKspaceFull: "emptyKspaceFull",
+        pageMaskUnder: "emptyMask",
+        pageReconError: "emptyRecon",
+    };
+    const syncTabs = () => {
+        viewerStepButtons.forEach((btn) => {
+            const markerId = READY_MARKER[btn.dataset.page];
+            if (!markerId) return;
+            const el = document.getElementById(markerId);
+            btn.classList.toggle("is-complete", !!el && el.style.display === "none");
+        });
+    };
+    syncTabs();
+    setInterval(syncTabs, 500);
+
+    // 3) the status dot follows the status text
+    const textEl = document.getElementById("statusText");
+    const dotEl = document.getElementById("statusDot");
+    if (textEl && dotEl) {
+        const syncDot = () => {
+            const t = (textEl.textContent || "").toLowerCase();
+            let state = "";
+            if (/fail|error|ignored|no dataset|no reconstruction|first/.test(t)) state = "is-warning";
+            else if (/\.\.\.|…|uploading|loading|reconstructing|running/.test(t)) state = "is-active";
+            else if (/complete|loaded|applied|ready|done|finished/.test(t)) state = "is-done";
+            dotEl.classList.remove("is-active", "is-warning", "is-done");
+            if (state) dotEl.classList.add(state);
+        };
+        new MutationObserver(syncDot).observe(textEl, { childList: true, characterData: true, subtree: true });
+        syncDot();
+    }
+})();
+
+// ---------------------------------------------------------------------------
+// Light / dark theme toggle (the saved choice is applied by a tiny script in
+// <head>, so there is no flash of the wrong theme on load)
+// ---------------------------------------------------------------------------
+(function themeToggle() {
+    const root = document.documentElement;
+    const btn = document.getElementById("themeToggle");
+    if (!btn) return;
+    const isLight = () => root.getAttribute("data-theme") === "light";
+    const syncLabel = () => {
+        const text = isLight() ? "Switch to dark mode" : "Switch to light mode";
+        btn.setAttribute("aria-label", text);
+        btn.setAttribute("aria-pressed", isLight() ? "true" : "false");
+        btn.title = text;
+    };
+    btn.addEventListener("click", () => {
+        const next = isLight() ? "dark" : "light";
+        root.setAttribute("data-theme", next);
+        try { localStorage.setItem("kspace-theme", next); } catch (e) { /* private mode: still works, just not remembered */ }
+        syncLabel();
+    });
+    syncLabel();
+})();
+
+// ---------------------------------------------------------------------------
+// Sampling-method menu: shows only the current choice; the list drops down on
+// hover (or focus / tap) and closes again after a pick. The option buttons keep
+// their data-pattern attribute, so controls.js works exactly as before.
+// ---------------------------------------------------------------------------
+(function patternMenu() {
+    const menu = document.getElementById("patternMenu");
+    if (!menu) return;
+    const trigger = document.getElementById("patternTrigger");
+    const list = document.getElementById("patternList");
+    const label = document.getElementById("patternTriggerText");
+    const items = () => Array.from(list.querySelectorAll("[data-pattern]"));
+    const rail = menu.closest(".rail");
+    let closeTimer = 0;
+
+    const syncLabel = () => {
+        const active = items().find((b) => b.classList.contains("is-active")) || items()[0];
+        const name = active && active.querySelector(".menu__name");
+        if (active) label.textContent = name ? name.textContent : active.textContent.trim();
+    };
+
+    const place = () => {
+        const r = trigger.getBoundingClientRect();
+        list.style.left = `${r.left}px`;
+        list.style.width = `${r.width}px`;
+        const h = list.offsetHeight;
+        const roomBelow = window.innerHeight - r.bottom;
+        list.style.top = roomBelow < h + 12 && r.top > h + 12 ? `${r.top - h - 6}px` : `${r.bottom + 6}px`;
+    };
+
+    const open = () => {
+        clearTimeout(closeTimer);
+        if (menu.classList.contains("is-open")) return;
+        menu.classList.add("is-open");
+        trigger.setAttribute("aria-expanded", "true");
+        place();
+    };
+
+    const close = (returnFocus) => {
+        clearTimeout(closeTimer);
+        menu.classList.remove("is-open");
+        trigger.setAttribute("aria-expanded", "false");
+        if (returnFocus) trigger.focus();
+    };
+
+    const closeSoon = () => {
+        clearTimeout(closeTimer);
+        closeTimer = setTimeout(() => close(false), 200);   // short grace period so moving from the button to the list doesn't flicker
+    };
+
+    // Hover only counts for a real mouse: touch screens send a stray "mouse left"
+    // right after a tap, which would close the list before anything could be picked.
+    let lastPointer = "mouse";
+    menu.addEventListener("pointerdown", (e) => { lastPointer = e.pointerType || "mouse"; });
+    menu.addEventListener("pointerenter", (e) => { if (e.pointerType === "mouse") open(); });
+    menu.addEventListener("pointerleave", (e) => { if (e.pointerType === "mouse") closeSoon(); });
+    trigger.addEventListener("click", () => {
+        if (lastPointer === "mouse") open();                                          // already open from hovering: keep it open
+        else if (menu.classList.contains("is-open")) close(false); else open();      // touch / pen: tap toggles
+    });
+
+    // a pick closes the menu (controls.js handles the actual selection)
+    list.addEventListener("click", (e) => {
+        if (!e.target.closest("[data-pattern]")) return;
+        setTimeout(syncLabel, 0);
+        close(false);
+        if (document.activeElement && list.contains(document.activeElement)) document.activeElement.blur();
+    });
+
+    // keyboard: open with Enter / Space / arrows, move with arrows, Esc closes
+    trigger.addEventListener("keydown", (e) => {
+        if (["ArrowDown", "ArrowUp", "Enter", " "].includes(e.key)) {
+            e.preventDefault();
+            open();
+            const all = items();
+            (all.find((b) => b.classList.contains("is-active")) || all[0]).focus();
+        } else if (e.key === "Escape") close(false);
+    });
+    list.addEventListener("keydown", (e) => {
+        const all = items();
+        const i = all.indexOf(document.activeElement);
+        if (e.key === "ArrowDown") { e.preventDefault(); all[Math.min(all.length - 1, i + 1)].focus(); }
+        else if (e.key === "ArrowUp") { e.preventDefault(); all[Math.max(0, i - 1)].focus(); }
+        else if (e.key === "Escape") { e.preventDefault(); close(true); }
+        else if (e.key === "Tab") close(false);
+    });
+
+    document.addEventListener("pointerdown", (e) => { if (!menu.contains(e.target)) close(false); });
+    window.addEventListener("resize", () => close(false));
+    if (rail) rail.addEventListener("scroll", () => close(false), { passive: true });
+
+    // keep the trigger text in step with whichever option is active (also after "reset session")
+    new MutationObserver(syncLabel).observe(list, { subtree: true, attributes: true, attributeFilter: ["class"] });
+    syncLabel();
+})();
+
+</script>
+<script src="../static/js/controls.js?v=noise2"></script>
+<script src="../static/js/paint.js?v=noise2"></script>
+<script src="../static/js/main.js?v=noise2"></script>
+<script src="../static/js/sliceVideo.js?v=noise2"></script>
+<script>
+/*
+ * K-SPACE sonification
+ * --------------------
+ * Turns the images in the console (source, k-space, undersampled k-space,
+ * mask, reconstruction, error map) into sound, and lets you compare two of
+ * them by ear.
+ *
+ * Two mappings:
+ *
+ *   spectral  every image row is a pitch (top = high, bottom = low) and the
+ *             image is played left -> right as time. Brightness = volume.
+ *             A bright horizontal line is a steady note, a bright vertical
+ *             line is a burst of many notes at once, and noise is a hiss
+ *             across all pitches.
+ *
+ *   contour   one voice follows the image left -> right. Pitch = where the
+ *             brightness is concentrated in that column (top = high),
+ *             volume = how bright the column is on average.
+ *
+ * The file has two halves: pure functions (resample / render / WAV export,
+ * no browser needed) and the "Sound" tab, which builds itself inside
+ * #soundLab and only runs in a browser. It also draws four graphs:
+ * a pitch-time map for each sound, an overlaid waveform, and a pitch profile.
+ */
+(function (root) {
+    "use strict";
+
+    // ------------------------------------------------------------------
+    // constants
+    // ------------------------------------------------------------------
+    const SAMPLE_RATE = 22050;
+    const BANDS = 48;          // pitch resolution (image rows are averaged into this many bands)
+    const STEPS = 96;          // time resolution (image columns are averaged into this many steps)
+    const F_LOW = 110;         // Hz, bottom row  (A2)
+    const F_HIGH = 3520;       // Hz, top row     (A7) -> 5 octaves
+    const GAMMA = 1.5;         // brightness -> loudness curve (emphasises bright detail over faint haze)
+    const GAP_SECONDS = 0.6;   // silence between sound 1 and sound 2 in "one after the other"
+    const DIFF_MIN_RANGE = 0.2; // difference sound is boosted up to 5x so small differences are audible
+
+    // ------------------------------------------------------------------
+    // pure functions
+    // ------------------------------------------------------------------
+
+    // Frequency of a band. index 0 = top row = highest pitch. Fractional
+    // indices are allowed (used by the contour mapping).
+    function bandFreq(index, bands) {
+        bands = bands || BANDS;
+        const t = bands > 1 ? index / (bands - 1) : 0;
+        return F_LOW * Math.pow(F_HIGH / F_LOW, 1 - t);
+    }
+
+    function clamp01(v) {
+        return v < 0 ? 0 : v > 1 ? 1 : v;
+    }
+
+    // Area-average a w x h image (Float32Array, row-major, values 0..1) down to
+    // bands x steps. Result is band-major: out[band * steps + step].
+    function resample(data, w, h, bands, steps) {
+        bands = bands || BANDS;
+        steps = steps || STEPS;
+        const out = new Float32Array(bands * steps);
+        for (let b = 0; b < bands; b++) {
+            const y0 = Math.floor((b * h) / bands);
+            const y1 = Math.min(h, Math.max(y0 + 1, Math.floor(((b + 1) * h) / bands)));
+            for (let s = 0; s < steps; s++) {
+                const x0 = Math.floor((s * w) / steps);
+                const x1 = Math.min(w, Math.max(x0 + 1, Math.floor(((s + 1) * w) / steps)));
+                let sum = 0;
+                let count = 0;
+                for (let y = y0; y < y1; y++) {
+                    for (let x = x0; x < x1; x++) {
+                        sum += data[y * w + x];
+                        count++;
+                    }
+                }
+                out[b * steps + s] = count ? sum / count : 0;
+            }
+        }
+        return out;
+    }
+
+    function absDiff(a, b) {
+        const out = new Float32Array(a.length);
+        let max = 0;
+        for (let i = 0; i < a.length; i++) {
+            out[i] = Math.abs(a[i] - b[i]);
+            if (out[i] > max) max = out[i];
+        }
+        // Boost small differences (up to 5x) so they can be heard; identical
+        // inputs stay exactly silent because max is 0.
+        if (max > 0) {
+            const gain = 1 / Math.max(max, DIFF_MIN_RANGE);
+            for (let i = 0; i < out.length; i++) out[i] = clamp01(out[i] * gain);
+        }
+        return out;
+    }
+
+    // Fixed, per-band phase so the same picture always gives the same sound
+    // (needed for a fair A/B comparison) without all bands starting in phase.
+    function bandPhase(b) {
+        const x = Math.sin((b + 1) * 12.9898) * 43758.5453;
+        return 2 * Math.PI * (x - Math.floor(x));
+    }
+
+    function finalize(out, sampleRate) {
+        const n = out.length;
+        for (let i = 0; i < n; i++) out[i] = Math.tanh(out[i]);   // soft limiter
+        const fade = Math.min(Math.floor(0.015 * sampleRate), n >> 1);
+        for (let i = 0; i < fade; i++) {
+            const g = i / fade;
+            out[i] *= g;
+            out[n - 1 - i] *= g;
+        }
+        return out;
+    }
+
+    // spectral mapping: row -> pitch, brightness -> volume, column -> time
+    function renderSpectral(mat, duration, opts) {
+        opts = opts || {};
+        const bands = opts.bands || BANDS;
+        const steps = opts.steps || STEPS;
+        const sr = opts.sampleRate || SAMPLE_RATE;
+        const n = Math.max(1, Math.round(duration * sr));
+        const out = new Float32Array(n);
+        const stepLen = n / steps;
+        const norm = 0.9 / Math.sqrt(bands);
+        const amps = new Float32Array(steps);
+
+        for (let b = 0; b < bands; b++) {
+            let peak = 0;
+            for (let s = 0; s < steps; s++) {
+                const a = Math.pow(clamp01(mat[b * steps + s]), GAMMA);
+                amps[s] = a;
+                if (a > peak) peak = a;
+            }
+            if (peak < 1e-4) continue;   // silent row
+
+            const w = (2 * Math.PI * bandFreq(b, bands)) / sr;
+            const ph = bandPhase(b);
+            for (let i = 0; i < n; i++) {
+                // amplitude glides linearly between the centres of neighbouring time steps
+                const pos = i / stepLen - 0.5;
+                const s0 = Math.floor(pos);
+                const fr = pos - s0;
+                const i0 = s0 < 0 ? 0 : s0 >= steps ? steps - 1 : s0;
+                const i1 = s0 + 1 < 0 ? 0 : s0 + 1 >= steps ? steps - 1 : s0 + 1;
+                out[i] += norm * (amps[i0] + (amps[i1] - amps[i0]) * fr) * Math.sin(ph + w * i);
+            }
+        }
+        return finalize(out, sr);
+    }
+
+    // contour mapping: one voice; pitch = brightness centroid of the column,
+    // volume = mean brightness of the column
+    function renderContour(mat, duration, opts) {
+        opts = opts || {};
+        const bands = opts.bands || BANDS;
+        const steps = opts.steps || STEPS;
+        const sr = opts.sampleRate || SAMPLE_RATE;
+        const n = Math.max(1, Math.round(duration * sr));
+        const out = new Float32Array(n);
+        const stepLen = n / steps;
+
+        const logF = new Float64Array(steps);
+        const vol = new Float64Array(steps);
+        let lastLog = Math.log(bandFreq((bands - 1) / 2, bands));
+        for (let s = 0; s < steps; s++) {
+            let sum = 0;
+            let weighted = 0;
+            for (let b = 0; b < bands; b++) {
+                const v = clamp01(mat[b * steps + s]);
+                sum += v;
+                weighted += v * b;
+            }
+            if (sum > 1e-6) lastLog = Math.log(bandFreq(weighted / sum, bands));
+            logF[s] = lastLog;
+            const mean = sum / bands;
+            vol[s] = Math.min(1, Math.pow(mean, 0.7) * 1.3) * 0.45;
+        }
+
+        let phase = 0;
+        for (let i = 0; i < n; i++) {
+            const pos = i / stepLen - 0.5;
+            const s0 = Math.floor(pos);
+            const fr = pos - s0;
+            const i0 = s0 < 0 ? 0 : s0 >= steps ? steps - 1 : s0;
+            const i1 = s0 + 1 < 0 ? 0 : s0 + 1 >= steps ? steps - 1 : s0 + 1;
+            const f = Math.exp(logF[i0] + (logF[i1] - logF[i0]) * fr);
+            const v = vol[i0] + (vol[i1] - vol[i0]) * fr;
+            phase += (2 * Math.PI * f) / sr;
+            out[i] = (v * (Math.sin(phase) + 0.35 * Math.sin(2 * phase) + 0.15 * Math.sin(3 * phase))) / 1.5;
+        }
+        return finalize(out, sr);
+    }
+
+    function render(mat, duration, mapping, opts) {
+        return mapping === "contour" ? renderContour(mat, duration, opts) : renderSpectral(mat, duration, opts);
+    }
+
+    // 16-bit PCM WAV. channels = array of Float32Array (all the same length).
+    function encodeWav(channels, sampleRate) {
+        sampleRate = sampleRate || SAMPLE_RATE;
+        const nch = channels.length;
+        const n = channels[0].length;
+        const buffer = new ArrayBuffer(44 + n * nch * 2);
+        const view = new DataView(buffer);
+        const str = (off, s) => { for (let i = 0; i < s.length; i++) view.setUint8(off + i, s.charCodeAt(i)); };
+        str(0, "RIFF");
+        view.setUint32(4, 36 + n * nch * 2, true);
+        str(8, "WAVE");
+        str(12, "fmt ");
+        view.setUint32(16, 16, true);
+        view.setUint16(20, 1, true);
+        view.setUint16(22, nch, true);
+        view.setUint32(24, sampleRate, true);
+        view.setUint32(28, sampleRate * nch * 2, true);
+        view.setUint16(32, nch * 2, true);
+        view.setUint16(34, 16, true);
+        str(36, "data");
+        view.setUint32(40, n * nch * 2, true);
+        let off = 44;
+        for (let i = 0; i < n; i++) {
+            for (let c = 0; c < nch; c++) {
+                const v = Math.max(-1, Math.min(1, channels[c][i]));
+                view.setInt16(off, v < 0 ? v * 0x8000 : v * 0x7fff, true);
+                off += 2;
+            }
+        }
+        return buffer;
+    }
+
+    const api = {
+        SAMPLE_RATE, BANDS, STEPS, F_LOW, F_HIGH, GAP_SECONDS,
+        bandFreq, resample, absDiff, renderSpectral, renderContour, render, encodeWav,
+    };
+
+    root.KSonify = api;
+    if (typeof module !== "undefined" && module.exports) module.exports = api;
+    if (typeof document === "undefined") return;   // Node / tests: pure functions only
+
+    // ------------------------------------------------------------------
+    // "Sound" tab (browser only)
+    // ------------------------------------------------------------------
+
+    // The six pictures in the console. `array` = exact data when the app keeps
+    // it; otherwise we read the pixels of the canvas that is on screen.
+    // (The error map uses the "hot" colormap, where (r+g+b)/765 is exactly the
+    // original 0..1 value, so reading pixels loses nothing but 8-bit rounding.)
+    const BUILTIN = [
+        { key: "source", name: "Source image",         letter: "A", canvas: "canvasOriginal",    empty: "emptyOriginal" },
+        { key: "kfull",  name: "k-space, full",        letter: "B", canvas: "canvasKspaceFull",  empty: "emptyKspaceFull",  array: () => window.LAST_KSPACE_FULL },
+        { key: "kunder", name: "Undersampled k-space", letter: "C", canvas: "canvasKspaceUnder", empty: "emptyKspaceUnder" },
+        { key: "mask",   name: "Sampling mask",        letter: "D", canvas: "canvasMask",        empty: "emptyMask" },
+        { key: "recon",  name: "Reconstruction",       letter: "E", canvas: "canvasRecon",       empty: "emptyRecon",       array: () => window.LAST_RECON },
+        { key: "error",  name: "Error map",            letter: "F", canvas: "canvasError",       empty: "emptyError" },
+    ];
+
+    const MAPPINGS = [
+        { value: "spectral", text: "Spectral (row = pitch)" },
+        { value: "contour",  text: "Contour (one moving voice)" },
+    ];
+
+    const MODES = [
+        { value: "then",   text: "One after the other" },
+        { value: "stereo", text: "Together (1 left, 2 right)" },
+        { value: "live",   text: "Live switch (jump 1 / 2)" },
+        { value: "diff",   text: "Difference only" },
+    ];
+
+    const COL = { one: "#38BDF8", two: "#F5A524", diff: "#C4B5FD", text: "#8593A6", msg: "#8593A6", grid: "rgba(255,255,255,0.07)", plot: "#070A0F", bg: "#10161F" };
+
+    // The plot areas are dark "instrument windows" in both themes; only the
+    // margins (behind the axis labels) and the label colour follow the theme.
+    function syncChartTheme() {
+        const light = document.documentElement.getAttribute("data-theme") === "light";
+        COL.bg = light ? "#FFFFFF" : "#10161F";
+        COL.text = light ? "#5B6A7F" : "#8593A6";
+    }
+
+    function makeLut(stops) {
+        const lut = new Uint8Array(256 * 3);
+        for (let i = 0; i < 256; i++) {
+            const t = i / 255;
+            let k = 0;
+            while (k < stops.length - 2 && t > stops[k + 1][0]) k++;
+            const [t0, c0] = stops[k];
+            const [t1, c1] = stops[k + 1];
+            const f = Math.max(0, Math.min(1, (t - t0) / (t1 - t0 || 1)));
+            for (let c = 0; c < 3; c++) lut[i * 3 + c] = Math.round(c0[c] + (c1[c] - c0[c]) * f);
+        }
+        return lut;
+    }
+    const LUT1 = makeLut([[0, [7, 12, 22]], [0.5, [24, 96, 160]], [0.82, [70, 190, 250]], [1, [236, 250, 255]]]);   // ice   (sound 1)
+    const LUT2 = makeLut([[0, [16, 9, 4]],  [0.5, [170, 96, 8]],  [0.82, [248, 176, 46]], [1, [255, 244, 216]]]);   // amber (sound 2)
+
+    const LUT3 = makeLut([[0, [9, 6, 20]],  [0.5, [96, 60, 190]], [0.82, [176, 150, 245]], [1, [245, 240, 255]]]);   // violet (difference)
+
+    const MAX_SNAPSHOTS = 6;
+    const snapshots = [];
+    let snapshotCounter = 0;
+
+    let audio = null;         // AudioContext
+    let masterNode = null;    // current master GainNode (so the volume slider works while playing)
+    let playing = null;       // { stop(), setLive() } for the current playback
+    let lastRender = null;    // { channels, name } for the WAV export
+
+    const S = { p1: null, p2: null, diff: null };   // prepared sounds (cached) + optional difference sound
+    const geom = {};                                 // plot rectangles per chart (for playheads)
+
+    const $ = (id) => document.getElementById(id);
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+    // ---------- reading the pictures ----------
+    function isReady(def) {
+        const el = $(def.empty);
+        return !!el && el.style.display === "none";
+    }
+
+    function currentParamsText() {
+        if (typeof pipelineParams === "undefined") return "";
+        const p = pipelineParams;
+        const parts = [];
+        if (p.pattern && p.pattern !== "full" && p.pattern !== "custom") parts.push(`${p.pattern} ×${p.acceleration}`);
+        else if (p.pattern) parts.push(p.pattern);
+        if (p.noise_level > 0) parts.push(`noise ${Number(p.noise_level).toFixed(1)}%`);
+        return parts.join(" · ");
+    }
+
+    function arrayToImage(array2d) {
+        const h = array2d.length;
+        const w = array2d[0].length;
+        const data = new Float32Array(w * h);
+        for (let y = 0; y < h; y++) {
+            const row = array2d[y];
+            for (let x = 0; x < w; x++) {
+                const v = Number(row[x]);
+                data[y * w + x] = Number.isFinite(v) ? clamp01(v) : 0;
+            }
+        }
+        return { data, w, h };
+    }
+
+    // The renderers fade new images in; wait for that to finish so we read the final picture.
+    async function settle(canvas) {
+        for (let i = 0; i < 40; i++) {
+            if (typeof canvasAnimations === "undefined" || !canvasAnimations.has(canvas)) return;
+            await sleep(50);
+        }
+    }
+
+    async function canvasToImage(canvas) {
+        await settle(canvas);
+        const w = canvas.width;
+        const h = canvas.height;
+        const px = canvas.getContext("2d").getImageData(0, 0, w, h).data;
+        const data = new Float32Array(w * h);
+        let any = false;
+        for (let i = 0, j = 0; i < data.length; i++, j += 4) {
+            if (px[j + 3] > 0) any = true;
+            data[i] = (px[j] + px[j + 1] + px[j + 2]) / 765;
+        }
+        return any ? { data, w, h } : null;
+    }
+
+    async function readSource(key) {
+        const snap = snapshots.find((s) => s.key === key);
+        if (snap) return { data: snap.data, w: snap.w, h: snap.h, label: snap.label };
+
+        const def = BUILTIN.find((d) => d.key === key);
+        if (!def || !isReady(def)) return null;
+        const label = `${def.name} (${def.letter})`;
+
+        const arr = def.array ? def.array() : null;
+        if (arr && arr.length && arr[0] && arr[0].length) return Object.assign(arrayToImage(arr), { label });
+
+        const img = await canvasToImage($(def.canvas));
+        return img ? Object.assign(img, { label }) : null;
+    }
+
+    // ---------- statistics ----------
+    function levelStats(mat, samples) {
+        let s = 0;
+        for (let i = 0; i < samples.length; i++) s += samples[i] * samples[i];
+        const rms = Math.sqrt(s / Math.max(1, samples.length));
+        let ws = 0;
+        let wl = 0;
+        let active = 0;
+        for (let b = 0; b < BANDS; b++) {
+            let row = 0;
+            for (let t = 0; t < STEPS; t++) {
+                const v = mat[b * STEPS + t];
+                row += v;
+                if (v > 0.05) active++;
+            }
+            row /= STEPS;
+            ws += row;
+            wl += row * Math.log(bandFreq(b));
+        }
+        return {
+            db: rms > 1e-9 ? 20 * Math.log10(rms) : -Infinity,
+            centre: ws > 1e-9 ? Math.exp(wl / ws) : null,          // brightness-weighted pitch centre, Hz
+            active: active / (BANDS * STEPS),                       // share of the picture that makes sound
+        };
+    }
+
+    function checksum(mat) {
+        let s = 0;
+        for (let i = 0; i < mat.length; i += 7) s += mat[i] * ((i % 89) + 1);
+        return s.toFixed(5);
+    }
+
+    const fmtDb = (db) => (db === -Infinity ? "silent" : `${db.toFixed(1)} dB`);
+    const fmtHz = (f) => (f === null ? "—" : f >= 1000 ? `${(f / 1000).toFixed(2)} kHz` : `${Math.round(f)} Hz`);
+    const sign = (v) => (v > 0 ? "+" : v < 0 ? "−" : "±");
+
+    // ---------- styles ----------
+    function injectStyles() {
+        if ($("sonifyStyles")) return;
+        const css = `
+        .sl{display:flex;flex-direction:column;gap:14px}
+        .sl-card{background:var(--panel,#10161F);border:1px solid var(--line,#232D3B);border-radius:14px;padding:16px}
+        .sl-strips{display:grid;grid-template-columns:minmax(0,1fr) 158px minmax(0,1fr);gap:14px;align-items:stretch}
+        .sl-strip{position:relative;display:flex;gap:14px;align-items:center;padding:14px 14px 14px 18px;border:1px solid var(--line,#232D3B);border-radius:12px;background:var(--panel-2,#151C27);overflow:hidden}
+        .sl-strip::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--c)}
+        .sl-strip--1{--c:${COL.one}} .sl-strip--2{--c:${COL.two}}
+        .sl-thumb{flex:none;width:88px;height:88px;border-radius:9px;background:#000;border:1px solid var(--line,#232D3B);overflow:hidden}
+        .sl-thumb canvas{display:block;width:100%;height:100%}
+        .sl-strip__body{flex:1;min-width:0;display:flex;flex-direction:column;gap:9px}
+        .sl-strip__title{white-space:nowrap;display:flex;align-items:center;gap:8px;font-size:11px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--text-2,#A7B3C4)}
+        .sl-chip{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:6px;background:var(--c);color:#06121A;font-family:var(--font-mono,monospace);font-size:11px;font-weight:700;letter-spacing:0}
+        .sl-stats{display:flex;flex-wrap:wrap;gap:3px 14px;font-family:var(--font-mono,monospace);font-size:11px;color:var(--text-3,#6F7C8F)}
+        .sl-stats b{color:var(--text,#E8EEF6);font-weight:600}
+        .sl-select{appearance:none;-webkit-appearance:none;width:100%;height:36px;padding:0 32px 0 11px;border:1px solid var(--line-strong,#34435A);border-radius:8px;background-color:var(--panel,#10161F);color:var(--text,#E8EEF6);font-size:12.5px;cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236F7C8F' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center}
+        .sl-select:hover{border-color:#46587A}
+        .sl-compare{display:flex;flex-direction:column;align-items:stretch;justify-content:center;gap:7px;text-align:center}
+        .sl-swap{align-self:center;height:30px;padding:0 12px;border:1px solid var(--line-strong,#34435A);border-radius:8px;background:var(--panel-2,#151C27);color:var(--text-2,#A7B3C4);font-size:12px;font-weight:500;cursor:pointer}
+        .sl-swap:hover{background:var(--panel-3,#1C2634);color:var(--text,#E8EEF6)}
+        .sl-delta{padding:6px 8px;border:1px solid var(--line-soft,#19212C);border-radius:8px;background:var(--panel,#10161F)}
+        .sl-delta span{display:block;font-size:9.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--text-3,#6F7C8F)}
+        .sl-delta b{display:block;margin-top:1px;font-family:var(--font-mono,monospace);font-size:12.5px;font-weight:600;color:var(--text,#E8EEF6)}
+        .sl-transport{display:flex;flex-direction:column;gap:16px}
+        .sl-buttons{display:flex;flex-wrap:wrap;gap:8px}
+        .sl-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:40px;padding:0 18px;border:1px solid var(--line-strong,#34435A);border-radius:10px;background:var(--panel-2,#151C27);color:var(--text,#E8EEF6);font-size:13px;font-weight:600;cursor:pointer;transition:background .14s,border-color .14s,transform .06s}
+        .sl-btn:hover{background:var(--panel-3,#1C2634);border-color:#4A5C7C}
+        .sl-btn:active{transform:translateY(1px)}
+        .sl-btn svg{width:14px;height:14px;fill:currentColor;flex:none}
+        .sl-btn--play{border-color:transparent;background:linear-gradient(180deg,var(--grad-a1,#34E0CB),var(--grad-a2,#14B8A6));color:var(--accent-ink,#04231F);box-shadow:0 6px 18px var(--accent-btn-shadow,rgba(20,184,166,.28))}
+        .sl-btn--play:hover{background:linear-gradient(180deg,var(--grad-a1h,#5EEAD4),var(--grad-a2h,#19C9B3));border-color:transparent}
+        .sl-btn--cmp{border-color:var(--amber-line,rgba(245,165,36,.5));background:var(--amber-wash,rgba(245,165,36,.1));color:var(--amber,#F5A524)}
+        .sl-btn--cmp:hover{border-color:var(--amber,#F5A524)}
+        .sl-btn--small{height:32px;padding:0 13px;font-size:12px;font-weight:500;border-radius:8px}
+        .sl-opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px 18px}
+        .sl-opt label,.sl-opt .sl-opt__lab{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;font-size:11.5px;font-weight:500;color:var(--text-2,#A7B3C4)}
+        .sl-opt .sl-opt__val{padding:1px 7px;border-radius:6px;background:var(--panel-3,#1C2634);border:1px solid var(--line,#232D3B);font-family:var(--font-mono,monospace);font-size:10.5px;color:var(--text,#E8EEF6)}
+        .sl-switch{display:none;gap:10px;margin-top:2px}
+        .sl-switch.is-visible{display:flex}
+        .sl-hear{flex:1;height:46px;border:1px solid var(--line-strong,#34435A);border-radius:11px;background:var(--panel-2,#151C27);color:var(--text-2,#A7B3C4);font-size:13px;font-weight:600;cursor:pointer;transition:all .12s}
+        .sl-hear[data-side="1"].is-on{background:rgba(56,189,248,.16);border-color:var(--cyan,#38BDF8);color:var(--cyan,#38BDF8)}
+        .sl-hear[data-side="2"].is-on{background:rgba(245,165,36,.16);border-color:var(--amber,#F5A524);color:var(--amber,#F5A524)}
+        .sl-graphs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+        .sl-fig{margin:0;padding:12px 12px 8px;border:1px solid var(--line,#232D3B);border-radius:12px;background:var(--panel,#10161F);min-width:0}
+        .sl-fig__cap{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;font-size:12px;font-weight:600;color:var(--text,#E8EEF6)}
+        .sl-fig__cap small{font-weight:400;font-size:10.5px;color:var(--text-3,#6F7C8F);white-space:nowrap}
+        .sl-dot{display:inline-block;width:8px;height:8px;margin-right:7px;border-radius:50%;background:var(--c)}
+        .sl-fig__frame{position:relative;height:196px}
+        .sl-fig--full{grid-column:1/-1}
+        .sl-fig--full .sl-fig__frame{height:150px}
+        .sl-fig__frame canvas{display:block;width:100%;height:100%}
+        .sl-head{position:absolute;width:2px;margin-left:-1px;background:#FFB020;box-shadow:0 0 8px #FFB020;display:none;pointer-events:none}
+        .sl-foot{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px}
+        .sl-status{flex:1;min-width:240px;margin:0;font-size:12px;line-height:1.5;color:var(--text-2,#A7B3C4)}
+        .sl-hint{margin:0;font-size:11px;line-height:1.55;color:var(--text-3,#6F7C8F)}
+        @media (max-width:1180px){.sl-strips{grid-template-columns:1fr}.sl-compare{flex-direction:row;flex-wrap:wrap;justify-content:center}.sl-delta{flex:1;min-width:110px}}
+        @media (max-width:900px){.sl-graphs{grid-template-columns:1fr}}
+        `;
+        const style = document.createElement("style");
+        style.id = "sonifyStyles";
+        style.textContent = css;
+        document.head.appendChild(style);
+    }
+
+    const ICON_PLAY = '<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>';
+    const ICON_STOP = '<svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1.5"/></svg>';
+    const ICON_CMP  = '<svg viewBox="0 0 24 24"><path d="M3 12h4l3-8 4 16 3-8h4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+    function buildLab(host) {
+        host.innerHTML = `
+        <div class="sl" id="sonifyPanel">
+
+          <div class="sl-card">
+            <div class="sl-strips">
+              <div class="sl-strip sl-strip--1">
+                <div class="sl-thumb"><canvas id="slThumb1" width="88" height="88"></canvas></div>
+                <div class="sl-strip__body">
+                  <div class="sl-strip__title"><span class="sl-chip">1</span>Sound 1</div>
+                  <select id="sonSel1" class="sl-select" aria-label="picture for sound 1"></select>
+                  <div class="sl-stats" id="slStats1"><span>choose a picture</span></div>
+                </div>
+              </div>
+
+              <div class="sl-compare">
+                <button type="button" class="sl-swap" id="sonSwap" title="swap sound 1 and sound 2">⇄ swap</button>
+                <div class="sl-delta"><span>loudness 2 vs 1</span><b id="slDLoud">—</b></div>
+                <div class="sl-delta"><span>pitch centre</span><b id="slDPitch">—</b></div>
+                <div class="sl-delta"><span>difference</span><b id="slDSim">—</b></div>
+              </div>
+
+              <div class="sl-strip sl-strip--2">
+                <div class="sl-thumb"><canvas id="slThumb2" width="88" height="88"></canvas></div>
+                <div class="sl-strip__body">
+                  <div class="sl-strip__title"><span class="sl-chip">2</span>Sound 2</div>
+                  <select id="sonSel2" class="sl-select" aria-label="picture for sound 2"></select>
+                  <div class="sl-stats" id="slStats2"><span>optional</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="sl-card">
+            <div class="sl-transport">
+              <div class="sl-buttons">
+                <button type="button" class="sl-btn sl-btn--play" id="sonPlay1">${ICON_PLAY}<span>Play sound 1</span></button>
+                <button type="button" class="sl-btn sl-btn--cmp" id="sonCompare">${ICON_CMP}<span>Compare 1 vs 2</span></button>
+                <button type="button" class="sl-btn" id="sonStop">${ICON_STOP}<span>Stop</span></button>
+              </div>
+              <div class="sl-opts">
+                <div class="sl-opt"><label for="sonMapping">Data → sound</label><select id="sonMapping" class="sl-select">${MAPPINGS.map((m) => `<option value="${m.value}">${m.text}</option>`).join("")}</select></div>
+                <div class="sl-opt"><label for="sonMode">Compare mode</label><select id="sonMode" class="sl-select">${MODES.map((m) => `<option value="${m.value}">${m.text}</option>`).join("")}</select></div>
+                <div class="sl-opt"><div class="sl-opt__lab"><span>Duration</span><span class="sl-opt__val" id="sonDurValue">6 s</span></div><input type="range" id="sonDur" min="3" max="15" step="1" value="6" class="slider"></div>
+                <div class="sl-opt"><div class="sl-opt__lab"><span>Volume</span><span class="sl-opt__val" id="sonVolValue">60%</span></div><input type="range" id="sonVol" min="0" max="100" step="1" value="60" class="slider"></div>
+              </div>
+            </div>
+            <div class="sl-switch" id="sonSwitch" style="margin-top:14px">
+              <button type="button" class="sl-hear is-on" id="sonHear1" data-side="1">Hearing sound 1 · key 1</button>
+              <button type="button" class="sl-hear" id="sonHear2" data-side="2">Hearing sound 2 · key 2</button>
+            </div>
+          </div>
+
+          <div class="sl-graphs">
+            <figure class="sl-fig">
+              <figcaption class="sl-fig__cap"><span><i class="sl-dot" style="--c:${COL.one}"></i>Pitch–time map · sound 1</span><small>brightness = volume</small></figcaption>
+              <div class="sl-fig__frame"><canvas id="slMap1"></canvas><div class="sl-head" id="sonHead1"></div></div>
+            </figure>
+            <figure class="sl-fig">
+              <figcaption class="sl-fig__cap"><span><i class="sl-dot" style="--c:${COL.two}"></i>Pitch–time map · sound 2</span><small>brightness = volume</small></figcaption>
+              <div class="sl-fig__frame"><canvas id="slMap2"></canvas><div class="sl-head" id="sonHead2"></div></div>
+            </figure>
+            <figure class="sl-fig">
+              <figcaption class="sl-fig__cap"><span id="slWaveCap"><i class="sl-dot" style="--c:${COL.one}"></i><i class="sl-dot" style="--c:${COL.two}"></i>Waveform · 1 vs 2</span><small>same scale</small></figcaption>
+              <div class="sl-fig__frame"><canvas id="slWave"></canvas><div class="sl-head" id="sonHeadW"></div></div>
+            </figure>
+            <figure class="sl-fig">
+              <figcaption class="sl-fig__cap"><span><i class="sl-dot" style="--c:${COL.one}"></i><i class="sl-dot" style="--c:${COL.two}"></i>Pitch profile · 1 vs 2</span><small>average level per pitch</small></figcaption>
+              <div class="sl-fig__frame"><canvas id="slProfile"></canvas></div>
+            </figure>
+            <figure class="sl-fig sl-fig--full">
+              <figcaption class="sl-fig__cap"><span><i class="sl-dot" style="--c:${COL.diff}"></i>Where the two sounds differ · |1 − 2|</span><small>brighter = bigger difference (boosted up to ×5)</small></figcaption>
+              <div class="sl-fig__frame"><canvas id="slMapD"></canvas><div class="sl-head" id="sonHeadD"></div></div>
+            </figure>
+          </div>
+
+          <div class="sl-foot">
+            <p class="sl-status" id="sonStatus">Pick a picture for sound 1 and press play. Add a sound 2 to compare.</p>
+            <button type="button" class="sl-btn sl-btn--small" id="sonSnap">📌 Save sound 1 as snapshot</button>
+            <button type="button" class="sl-btn sl-btn--small" id="sonWav">⬇ Export .wav</button>
+          </div>
+          <p class="sl-hint" id="slHint"></p>
+        </div>`;
+    }
+
+    let sel1, sel2, mapSel, modeSel, durSlider, volSlider, statusEl;
+    let lastSignature = "";
+
+    function setStatus(text) {
+        statusEl.textContent = text;
+    }
+
+    function paintRange(el) {
+        const min = parseFloat(el.min) || 0;
+        const max = parseFloat(el.max) || 100;
+        el.style.setProperty("--p", `${((parseFloat(el.value) - min) / (max - min)) * 100}%`);
+    }
+
+    function pageActive() {
+        const page = $("pageSound");
+        return !!page && page.classList.contains("is-active");
+    }
+
+    // ---------- option lists ----------
+    function optionSpecs(withNone) {
+        const specs = [];
+        if (withNone) specs.push({ value: "", text: "— none —" });
+        BUILTIN.forEach((d) => specs.push({ value: d.key, text: `${d.name} (${d.letter})${isReady(d) ? "" : "  · not ready yet"}` }));
+        snapshots.forEach((s) => specs.push({ value: s.key, text: `📌 ${s.label}` }));
+        return specs;
+    }
+
+    function refreshOptions(force) {
+        const specs1 = optionSpecs(false);
+        const specs2 = optionSpecs(true);
+        const signature = JSON.stringify([specs1, specs2]);
+        if (!force && signature === lastSignature) return false;
+        lastSignature = signature;
+
+        const fill = (sel, specs) => {
+            const keep = sel.value;
+            sel.innerHTML = "";
+            specs.forEach((s) => {
+                const o = document.createElement("option");
+                o.value = s.value;
+                o.textContent = s.text;
+                sel.appendChild(o);
+            });
+            if (specs.some((s) => s.value === keep)) sel.value = keep;
+        };
+        fill(sel1, specs1);
+        fill(sel2, specs2);
+        return true;
+    }
+
+    // ---------- preparing sounds (cached) ----------
+    async function prepare(key, slot) {
+        if (!key) return null;
+        const src = await readSource(key);
+        if (!src) return { key, missing: true };
+        const mapping = mapSel.value;
+        const dur = parseInt(durSlider.value, 10);
+        const mat = resample(src.data, src.w, src.h);
+        const sig = `${key}|${mapping}|${dur}|${checksum(mat)}`;
+        const prev = S["p" + slot];
+        if (prev && prev.sig === sig) return prev;
+        const samples = render(mat, dur, mapping);
+        return { key, label: src.label, src, mat, audio: samples, sig, stats: levelStats(mat, samples) };
+    }
+
+    let refreshTimer = 0;
+    let refreshing = false;
+    let refreshAgain = false;
+    let stale = true;
+
+    function scheduleRefresh(ms) {
+        clearTimeout(refreshTimer);
+        refreshTimer = setTimeout(refreshGraphs, ms === undefined ? 200 : ms);
+    }
+
+    async function refreshGraphs() {
+        if (!pageActive() || playing) { stale = true; return; }   // draw when the tab is visible and idle
+        if (refreshing) { refreshAgain = true; return; }
+        refreshing = true;
+        try {
+            do {
+                refreshAgain = false;
+                const p1 = await prepare(sel1.value, 1);
+                const p2 = await prepare(sel2.value, 2);
+                S.p1 = p1;
+                S.p2 = p2;
+                S.diff = null;
+                drawAll();
+            } while (refreshAgain);
+            stale = false;
+        } finally {
+            refreshing = false;
+        }
+    }
+
+    // ---------- canvas helpers ----------
+    function fitCanvas(canvas) {
+        const r = canvas.getBoundingClientRect();
+        if (r.width < 20 || r.height < 20) return null;
+        const dpr = Math.min(2, window.devicePixelRatio || 1);
+        const W = Math.round(r.width * dpr);
+        const H = Math.round(r.height * dpr);
+        if (canvas.width !== W) canvas.width = W;
+        if (canvas.height !== H) canvas.height = H;
+        const ctx = canvas.getContext("2d");
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        return { ctx, w: r.width, h: r.height };
+    }
+
+    const M = { l: 46, r: 10, t: 8, b: 22 };   // plot margins (CSS px)
+    const FONT = '10px "JetBrains Mono", ui-monospace, monospace';
+    const fmtTick = (f) => (f >= 1000 ? `${(f / 1000).toFixed(1).replace(".0", "")}k` : `${f}`);
+    const PITCH_TICKS = [110, 220, 440, 880, 1760, 3520];
+
+    function frame(id) {
+        const canvas = $(id);
+        const g = fitCanvas(canvas);
+        if (!g) return null;
+        const { ctx, w, h } = g;
+        ctx.fillStyle = COL.bg;
+        ctx.fillRect(0, 0, w, h);
+        const pw = w - M.l - M.r;
+        const ph = h - M.t - M.b;
+        ctx.fillStyle = COL.plot;
+        ctx.fillRect(M.l, M.t, pw, ph);
+        geom[id] = { x0: M.l, x1: M.l + pw, y0: M.t, y1: M.t + ph };
+        return { ctx, w, h, pw, ph };
+    }
+
+    function message(ctx, g, text) {
+        ctx.fillStyle = COL.msg;
+        ctx.font = "12px Inter, system-ui, sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(text, M.l + g.pw / 2, M.t + g.ph / 2);
+    }
+
+    function timeAxis(ctx, g, dur) {
+        const step = dur <= 6 ? 1 : dur <= 10 ? 2 : 3;
+        ctx.font = FONT;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "top";
+        for (let t = 0; t <= dur; t += step) {
+            const x = M.l + (t / dur) * g.pw;
+            ctx.strokeStyle = COL.grid;
+            ctx.beginPath(); ctx.moveTo(x, M.t); ctx.lineTo(x, M.t + g.ph); ctx.stroke();
+            ctx.fillStyle = COL.text;
+            ctx.fillText(`${t}s`, x, M.t + g.ph + 6);
+        }
+    }
+
+    function pitchAxisY(ctx, g) {
+        ctx.font = FONT;
+        ctx.textAlign = "right";
+        ctx.textBaseline = "middle";
+        PITCH_TICKS.forEach((f) => {
+            const y = M.t + (1 - Math.log2(f / F_LOW) / Math.log2(F_HIGH / F_LOW)) * g.ph;
+            ctx.strokeStyle = COL.grid;
+            ctx.beginPath(); ctx.moveTo(M.l, y); ctx.lineTo(M.l + g.pw, y); ctx.stroke();
+            ctx.fillStyle = COL.text;
+            ctx.fillText(`${fmtTick(f)}`, M.l - 6, y);
+        });
+    }
+
+    const offscreen = document.createElement("canvas");
+
+    function drawMap(id, prep, lut, dur, emptyText) {
+        const g = frame(id);
+        if (!g) return;
+        const { ctx } = g;
+        if (prep && prep.mat) {
+            offscreen.width = STEPS;
+            offscreen.height = BANDS;
+            const octx = offscreen.getContext("2d");
+            const img = octx.createImageData(STEPS, BANDS);
+            for (let i = 0; i < STEPS * BANDS; i++) {
+                const v = Math.round(clamp01(Math.pow(prep.mat[i], 0.8)) * 255) * 3;
+                img.data[i * 4] = lut[v];
+                img.data[i * 4 + 1] = lut[v + 1];
+                img.data[i * 4 + 2] = lut[v + 2];
+                img.data[i * 4 + 3] = 255;
+            }
+            octx.putImageData(img, 0, 0);
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = "high";
+            ctx.drawImage(offscreen, M.l, M.t, g.pw, g.ph);
+        } else {
+            message(ctx, g, emptyText);
+        }
+        pitchAxisY(ctx, g);
+        timeAxis(ctx, g, dur);
+        ctx.strokeStyle = "rgba(255,255,255,0.12)";
+        ctx.strokeRect(M.l + 0.5, M.t + 0.5, g.pw - 1, g.ph - 1);
+    }
+
+    function drawWave(traces, dur) {
+        const g = frame("slWave");
+        if (!g) return;
+        const { ctx } = g;
+        const live = traces.filter((t) => t.data);
+        let peak = 0;
+        live.forEach((t) => { for (let i = 0; i < t.data.length; i += 3) peak = Math.max(peak, Math.abs(t.data[i])); });
+        const scale = Math.max(0.05, peak * 1.12);
+        const mid = M.t + g.ph / 2;
+
+        // grid + amplitude labels
+        ctx.font = FONT;
+        ctx.textAlign = "right";
+        ctx.textBaseline = "middle";
+        [[1, "+" + scale.toFixed(2)], [0, "0"], [-1, "−" + scale.toFixed(2)]].forEach(([k, label]) => {
+            const y = mid - (k * g.ph) / 2;
+            ctx.strokeStyle = k === 0 ? "rgba(255,255,255,0.16)" : COL.grid;
+            ctx.beginPath(); ctx.moveTo(M.l, y); ctx.lineTo(M.l + g.pw, y); ctx.stroke();
+            ctx.fillStyle = COL.text;
+            ctx.fillText(label, M.l - 6, Math.max(M.t + 6, Math.min(M.t + g.ph - 6, y)));
+        });
+        timeAxis(ctx, g, dur);
+
+        if (!live.length) { message(ctx, g, "play or select a sound to see its waveform"); return; }
+
+        live.forEach((t, idx) => {
+            const n = t.data.length;
+            const top = new Float32Array(Math.ceil(g.pw));
+            const bot = new Float32Array(Math.ceil(g.pw));
+            for (let x = 0; x < top.length; x++) {
+                const i0 = Math.floor((x / top.length) * n);
+                const i1 = Math.max(i0 + 1, Math.floor(((x + 1) / top.length) * n));
+                let mx = -1;
+                let mn = 1;
+                for (let i = i0; i < i1 && i < n; i++) { const v = t.data[i]; if (v > mx) mx = v; if (v < mn) mn = v; }
+                top[x] = mx;
+                bot[x] = mn;
+            }
+            const yTop = (x) => mid - (top[x] / scale) * (g.ph / 2);
+            const yBot = (x) => mid - (bot[x] / scale) * (g.ph / 2);
+            if (t.outline) {
+                // sound 2 is drawn as an outline on top of sound 1's fill, so the two stay distinguishable
+                ctx.strokeStyle = t.color;
+                ctx.lineWidth = 1.4;
+                [yTop, yBot].forEach((yOf) => {
+                    ctx.beginPath();
+                    for (let x = 0; x < top.length; x++) { if (x === 0) ctx.moveTo(M.l + x, yOf(x)); else ctx.lineTo(M.l + x, yOf(x)); }
+                    ctx.stroke();
+                });
+                ctx.lineWidth = 1;
+            } else {
+                ctx.beginPath();
+                for (let x = 0; x < top.length; x++) ctx.lineTo(M.l + x, yTop(x));
+                for (let x = top.length - 1; x >= 0; x--) ctx.lineTo(M.l + x, yBot(x));
+                ctx.closePath();
+                ctx.globalAlpha = 0.6;
+                ctx.fillStyle = t.color;
+                ctx.fill();
+                ctx.globalAlpha = 1;
+            }
+        });
+        ctx.strokeStyle = "rgba(255,255,255,0.12)";
+        ctx.strokeRect(M.l + 0.5, M.t + 0.5, g.pw - 1, g.ph - 1);
+    }
+
+    function drawProfile(items) {
+        const g = frame("slProfile");
+        if (!g) return;
+        const { ctx } = g;
+        const live = items.filter((t) => t.mat);
+        const profiles = live.map((t) => {
+            const out = new Float32Array(BANDS);
+            for (let b = 0; b < BANDS; b++) {
+                let s = 0;
+                for (let k = 0; k < STEPS; k++) s += t.mat[b * STEPS + k];
+                out[b] = s / STEPS;
+            }
+            return out;
+        });
+        let top = 0;
+        profiles.forEach((p) => p.forEach((v) => { if (v > top) top = v; }));
+        top = Math.max(0.1, Math.ceil(top * 1.15 * 10) / 10);
+
+        const xOf = (f) => M.l + (Math.log2(f / F_LOW) / Math.log2(F_HIGH / F_LOW)) * g.pw;
+        ctx.font = FONT;
+        ctx.textBaseline = "top";
+        ctx.textAlign = "center";
+        PITCH_TICKS.forEach((f) => {
+            const x = xOf(f);
+            ctx.strokeStyle = COL.grid;
+            ctx.beginPath(); ctx.moveTo(x, M.t); ctx.lineTo(x, M.t + g.ph); ctx.stroke();
+            ctx.fillStyle = COL.text;
+            ctx.fillText(fmtTick(f), x, M.t + g.ph + 6);
+        });
+        ctx.textAlign = "right";
+        ctx.textBaseline = "middle";
+        [0, 0.5, 1].forEach((k) => {
+            const y = M.t + g.ph - k * g.ph;
+            ctx.strokeStyle = COL.grid;
+            ctx.beginPath(); ctx.moveTo(M.l, y); ctx.lineTo(M.l + g.pw, y); ctx.stroke();
+            ctx.fillStyle = COL.text;
+            ctx.fillText((k * top).toFixed(2), M.l - 6, Math.max(M.t + 6, Math.min(M.t + g.ph - 6, y)));
+        });
+
+        if (!profiles.length) { message(ctx, g, "select a picture to see its pitch profile"); return; }
+
+        profiles.forEach((p, idx) => {
+            const color = live[idx].color;
+            ctx.beginPath();
+            for (let b = BANDS - 1; b >= 0; b--) {       // b = 0 is the top row = highest pitch, so walk low -> high
+                const x = xOf(bandFreq(b));
+                const y = M.t + g.ph - (Math.min(p[b], top) / top) * g.ph;
+                if (b === BANDS - 1) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+            }
+            ctx.lineTo(xOf(F_HIGH), M.t + g.ph);
+            ctx.lineTo(xOf(F_LOW), M.t + g.ph);
+            ctx.closePath();
+            ctx.globalAlpha = 0.16;
+            ctx.fillStyle = color;
+            ctx.fill();
+            ctx.globalAlpha = 1;
+            ctx.beginPath();
+            for (let b = BANDS - 1; b >= 0; b--) {
+                const x = xOf(bandFreq(b));
+                const y = M.t + g.ph - (Math.min(p[b], top) / top) * g.ph;
+                if (b === BANDS - 1) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+            }
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 1.8;
+            ctx.stroke();
+            ctx.lineWidth = 1;
+        });
+        ctx.strokeStyle = "rgba(255,255,255,0.12)";
+        ctx.strokeRect(M.l + 0.5, M.t + 0.5, g.pw - 1, g.ph - 1);
+    }
+
+    function drawThumb(id, src) {
+        const canvas = $(id);
+        const dpr = Math.min(2, window.devicePixelRatio || 1);
+        const size = Math.round(88 * dpr);
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext("2d");
+        ctx.fillStyle = "#000";
+        ctx.fillRect(0, 0, size, size);
+        if (!src) return;
+        const tmp = document.createElement("canvas");
+        tmp.width = src.w;
+        tmp.height = src.h;
+        const tctx = tmp.getContext("2d");
+        const img = tctx.createImageData(src.w, src.h);
+        for (let i = 0; i < src.w * src.h; i++) {
+            const v = Math.round(clamp01(src.data[i]) * 255);
+            img.data[i * 4] = v; img.data[i * 4 + 1] = v; img.data[i * 4 + 2] = v; img.data[i * 4 + 3] = 255;
+        }
+        tctx.putImageData(img, 0, 0);
+        const k = Math.min(size / src.w, size / src.h);
+        const dw = src.w * k;
+        const dh = src.h * k;
+        ctx.imageSmoothingEnabled = true;
+        ctx.drawImage(tmp, (size - dw) / 2, (size - dh) / 2, dw, dh);
+    }
+
+    function statsHtml(p, emptyText) {
+        if (!p) return `<span>${emptyText}</span>`;
+        if (p.missing) return "<span>not ready: run that step first</span>";
+        const s = p.stats;
+        return `<span>loudness <b>${fmtDb(s.db)}</b></span><span>pitch centre <b>${fmtHz(s.centre)}</b></span><span>active <b>${Math.round(s.active * 100)}%</b></span>`;
+    }
+
+    const HINTS = {
+        spectral: "How to read the graphs: left → right is time, bottom → top is pitch, brighter is louder. A hiss shows up as a haze across all pitches; skipped k-space lines show up as gaps between pitches.",
+        contour: "Contour plays one voice: its pitch follows where the picture is bright (top = high) and its volume follows how bright each column is. The graphs still show the full pitch–time picture.",
+    };
+
+    function drawAll() {
+        syncChartTheme();
+        const dur = parseInt(durSlider.value, 10);
+        $("slHint").textContent = HINTS[mapSel.value] || HINTS.spectral;
+        const p1 = S.p1 && !S.p1.missing ? S.p1 : null;
+        const p2 = S.p2 && !S.p2.missing ? S.p2 : null;
+
+        drawThumb("slThumb1", p1 && p1.src);
+        drawThumb("slThumb2", p2 && p2.src);
+        $("slStats1").innerHTML = statsHtml(S.p1, "choose a picture");
+        $("slStats2").innerHTML = statsHtml(S.p2, "optional");
+
+        drawMap("slMap1", p1, LUT1, dur, sel1.value ? "not ready: run that step first" : "choose a picture for sound 1");
+        drawMap("slMap2", p2, LUT2, dur, sel2.value ? "not ready: run that step first" : "choose a sound 2 to compare");
+
+        const traces = [{ data: p1 && p1.audio, color: COL.one }, { data: p2 && p2.audio, color: COL.two, outline: true }];
+        if (S.diff) traces.push({ data: S.diff.audio, color: COL.diff, outline: true });
+        drawWave(traces, dur);
+        $("slWaveCap").innerHTML = S.diff
+            ? `<i class="sl-dot" style="--c:${COL.diff}"></i>Waveform · difference sound over 1 and 2`
+            : `<i class="sl-dot" style="--c:${COL.one}"></i><i class="sl-dot" style="--c:${COL.two}"></i>Waveform · 1 vs 2`;
+
+        drawProfile([{ mat: p1 && p1.mat, color: COL.one }, { mat: p2 && p2.mat, color: COL.two }]);
+
+        // where the two differ
+        const dmat = p1 && p2 ? absDiff(p1.mat, p2.mat) : null;
+        drawMap("slMapD", dmat ? { mat: dmat } : null, LUT3, dur, p1 && p2 ? "" : "choose a sound 2 to see where the two sounds differ");
+
+        // comparison chips
+        if (p1 && p2) {
+            const a = p1.stats;
+            const b = p2.stats;
+            const dl = a.db === -Infinity || b.db === -Infinity ? null : b.db - a.db;
+            const dp = a.centre && b.centre ? 12 * Math.log2(b.centre / a.centre) : null;
+            $("slDLoud").textContent = dl === null ? "—" : `${sign(dl)}${Math.abs(dl).toFixed(1)} dB`;
+            $("slDPitch").textContent = dp === null ? "—" : `${sign(dp)}${Math.abs(dp).toFixed(1)} semitones`;
+            let meanDiff = 0;
+            for (let i = 0; i < p1.mat.length; i++) meanDiff += Math.abs(p1.mat[i] - p2.mat[i]);
+            meanDiff /= p1.mat.length;
+            $("slDSim").textContent = meanDiff < 0.0005 ? "identical" : `${(meanDiff * 100).toFixed(meanDiff < 0.1 ? 1 : 0)}%`;
+        } else {
+            ["slDLoud", "slDPitch", "slDSim"].forEach((id) => { $(id).textContent = "—"; });
+        }
+    }
+
+    // ---------- playheads ----------
+    const HEAD_CHART = { sonHead1: "slMap1", sonHead2: "slMap2", sonHeadW: "slWave", sonHeadD: "slMapD" };
+
+    function movePlayhead(id, fraction) {
+        const el = $(id);
+        if (!el) return;
+        const g = geom[HEAD_CHART[id]];
+        if (fraction === null || !g) {
+            el.style.display = "none";
+            return;
+        }
+        el.style.display = "block";
+        el.style.left = `${g.x0 + fraction * (g.x1 - g.x0)}px`;
+        el.style.top = `${g.y0}px`;
+        el.style.height = `${g.y1 - g.y0}px`;
+    }
+
+    // ---------- audio ----------
+    function getAudio() {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return null;
+        if (!audio) audio = new AC();
+        if (audio.state === "suspended" && audio.resume) audio.resume();
+        return audio;
+    }
+
+    function stopPlayback() {
+        if (playing) {
+            const p = playing;
+            playing = null;
+            p.stop();
+        }
+        Object.keys(HEAD_CHART).forEach((id) => movePlayhead(id, null));
+        $("sonSwitch").classList.remove("is-visible");
+    }
+
+    function makeBuffer(ctx, channels) {
+        const buf = ctx.createBuffer(channels.length, channels[0].length, SAMPLE_RATE);
+        channels.forEach((data, c) => {
+            if (buf.copyToChannel) buf.copyToChannel(data, c);
+            else buf.getChannelData(c).set(data);
+        });
+        return buf;
+    }
+
+    async function start(kind) {
+        stopPlayback();
+
+        const key1 = sel1.value;
+        const key2 = sel2.value;
+        const compare = kind === "compare";
+        if (!key1) return setStatus("Choose a picture for sound 1.");
+        if (compare && !key2) return setStatus("Choose a sound 2 to compare with.");
+
+        const ctx = getAudio();
+        if (!ctx) return setStatus("This browser has no Web Audio support.");
+
+        setStatus("Preparing sound…");
+        await sleep(20);   // let the status paint before the (short) synthesis work
+
+        const p1 = await prepare(key1, 1);
+        if (!p1 || p1.missing) return setStatus("Sound 1 isn't ready yet: run that step in the console first.");
+        let p2 = S.p2;
+        if (compare) {
+            p2 = await prepare(key2, 2);
+            if (!p2 || p2.missing) return setStatus("Sound 2 isn't ready yet: run that step in the console first.");
+        }
+        S.p1 = p1;
+        if (compare) S.p2 = p2;
+        S.diff = null;
+
+        const dur = parseInt(durSlider.value, 10);
+        const mapping = mapSel.value;
+        const mode = modeSel.value;
+
+        const master = ctx.createGain();
+        master.gain.value = parseInt(volSlider.value, 10) / 100;
+        master.connect(ctx.destination);
+        masterNode = master;
+
+        const sources = [];
+        let channelsForWav;
+        let name;
+        let totalSeconds = dur;
+        let segments;          // playhead schedule: [{from, to, id}]
+        let loop = false;
+        let live = null;
+
+        const bufferSource = (channels, opts) => {
+            const src = ctx.createBufferSource();
+            src.buffer = makeBuffer(ctx, channels);
+            if (opts && opts.loop) src.loop = true;
+            sources.push(src);
+            return src;
+        };
+
+        if (!compare) {
+            channelsForWav = [p1.audio];
+            name = `sound1_${p1.label}`;
+            bufferSource([p1.audio]).connect(master);
+            segments = [{ from: 0, to: dur, id: "sonHead1" }];
+        } else if (mode === "then") {
+            const gap = new Float32Array(Math.round(GAP_SECONDS * SAMPLE_RATE));
+            const joined = new Float32Array(p1.audio.length + gap.length + p2.audio.length);
+            joined.set(p1.audio, 0);
+            joined.set(p2.audio, p1.audio.length + gap.length);
+            channelsForWav = [joined];
+            name = "1_then_2";
+            bufferSource([joined]).connect(master);
+            totalSeconds = joined.length / SAMPLE_RATE;
+            segments = [
+                { from: 0, to: dur, id: "sonHead1" },
+                { from: dur + GAP_SECONDS, to: totalSeconds, id: "sonHead2" },
+            ];
+        } else if (mode === "stereo") {
+            channelsForWav = [p1.audio, p2.audio];
+            name = "1_left_2_right";
+            bufferSource([p1.audio, p2.audio]).connect(master);
+            segments = [{ from: 0, to: dur, id: "sonHead1" }, { from: 0, to: dur, id: "sonHead2" }];
+        } else if (mode === "live") {
+            channelsForWav = [p1.audio, p2.audio];
+            name = "1_left_2_right";
+            const gA = ctx.createGain();
+            const gB = ctx.createGain();
+            gA.gain.value = 1;
+            gB.gain.value = 0;
+            bufferSource([p1.audio], { loop: true }).connect(gA);
+            bufferSource([p2.audio], { loop: true }).connect(gB);
+            gA.connect(master);
+            gB.connect(master);
+            loop = true;
+            segments = [{ from: 0, to: dur, id: "sonHead1" }, { from: 0, to: dur, id: "sonHead2" }];
+            live = { gA, gB };
+        } else {   // diff
+            const d = absDiff(p1.mat, p2.mat);
+            const a = render(d, dur, mapping);
+            S.diff = { mat: d, audio: a };
+            channelsForWav = [a];
+            name = "difference_1_vs_2";
+            bufferSource([a]).connect(master);
+            segments = [{ from: 0, to: dur, id: "sonHead1" }, { from: 0, to: dur, id: "sonHead2" }];
+        }
+
+        lastRender = { channels: channelsForWav, name };
+        drawAll();
+
+        const setLive = (which) => {
+            if (!live) return;
+            const t = ctx.currentTime;
+            live.gA.gain.setTargetAtTime(which === 1 ? 1 : 0, t, 0.012);
+            live.gB.gain.setTargetAtTime(which === 2 ? 1 : 0, t, 0.012);
+            $("sonHear1").classList.toggle("is-on", which === 1);
+            $("sonHear2").classList.toggle("is-on", which === 2);
+        };
+
+        const t0 = ctx.currentTime + 0.05;
+        let raf = 0;
+        const tick = () => {
+            if (!playing) return;
+            let t = ctx.currentTime - t0;
+            if (loop && t > 0) t = t % totalSeconds;
+            let waveFraction = null;
+            segments.forEach((seg) => {
+                if (t >= seg.from && t <= seg.to) {
+                    const f = (t - seg.from) / (seg.to - seg.from);
+                    movePlayhead(seg.id, f);
+                    if (waveFraction === null) waveFraction = f;
+                } else {
+                    movePlayhead(seg.id, null);
+                }
+            });
+            movePlayhead("sonHeadW", waveFraction);
+            movePlayhead("sonHeadD", waveFraction);
+            raf = requestAnimationFrame(tick);
+        };
+
+        const handle = {
+            stop() {
+                cancelAnimationFrame(raf);
+                sources.forEach((s) => { try { s.onended = null; s.stop(); } catch (e) { /* already stopped */ } });
+                try { master.disconnect(); } catch (e) { /* ignore */ }
+                live = null;
+                setStatus("Stopped.");
+            },
+            setLive,
+        };
+        playing = handle;
+
+        // end of (non-looping) playback
+        sources[0].onended = () => {
+            if (playing !== handle) return;
+            playing = null;
+            cancelAnimationFrame(raf);
+            Object.keys(HEAD_CHART).forEach((id) => movePlayhead(id, null));
+            $("sonSwitch").classList.remove("is-visible");
+            setStatus("Finished. Change the noise or sampling, re-run, and play again to hear the difference.");
+            if (stale) scheduleRefresh(100);
+        };
+
+        sources.forEach((s) => s.start(t0));
+        raf = requestAnimationFrame(tick);
+
+        if (live) {
+            $("sonHear1").classList.add("is-on");
+            $("sonHear2").classList.remove("is-on");
+            $("sonSwitch").classList.add("is-visible");
+            setStatus("Looping. Press 1 or 2 (keys or buttons) to jump between the two sounds at the same moment.");
+        } else if (!compare) {
+            setStatus(`Playing sound 1: ${p1.label}`);
+        } else if (mode === "stereo") {
+            setStatus(`Playing 1 in the left ear and 2 in the right (use headphones): ${p1.label} | ${p2.label}`);
+        } else if (mode === "then") {
+            setStatus(`Playing 1, a short pause, then 2: ${p1.label} → ${p2.label}`);
+        } else {
+            setStatus("Playing what differs between 1 and 2. Silence means they are identical.");
+        }
+    }
+
+    // ---------- snapshot + wav ----------
+    async function takeSnapshot() {
+        const key = sel1.value;
+        const src = await readSource(key);
+        if (!src) return setStatus("Nothing to snapshot yet: run that step first.");
+        const params = currentParamsText();
+        const dependsOnParams = ["kunder", "mask", "recon", "error"].includes(key);
+        snapshotCounter += 1;
+        const label = `#${snapshotCounter} ${src.label}${dependsOnParams && params ? " · " + params : ""}`;
+        snapshots.push({ key: `snap${snapshotCounter}`, label, data: src.data, w: src.w, h: src.h });
+        while (snapshots.length > MAX_SNAPSHOTS) snapshots.shift();
+        refreshOptions(true);
+        sel2.value = `snap${snapshotCounter}`;
+        scheduleRefresh(50);
+        setStatus(`Saved "${label}". It is now selected as sound 2. Change a setting, re-run, and compare.`);
+    }
+
+    function saveWav() {
+        if (!lastRender) return setStatus("Play something first, then export it.");
+        const blob = new Blob([encodeWav(lastRender.channels, SAMPLE_RATE)], { type: "audio/wav" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `kspace_${lastRender.name.replace(/[^a-z0-9_-]+/gi, "_").slice(0, 60)}.wav`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 2000);
+        setStatus("Exported the last sound as a .wav file.");
+    }
+
+    // ---------- init ----------
+    function init() {
+        const host = $("soundLab");
+        if (!host || $("sonifyPanel")) {
+            if (!host) console.warn("K-SPACE sonification: #soundLab not found in index.html (is templates/index.html up to date?)");
+            return;
+        }
+        injectStyles();
+        buildLab(host);
+
+        sel1 = $("sonSel1");
+        sel2 = $("sonSel2");
+        mapSel = $("sonMapping");
+        modeSel = $("sonMode");
+        durSlider = $("sonDur");
+        volSlider = $("sonVol");
+        statusEl = $("sonStatus");
+
+        refreshOptions(true);
+        sel1.value = "recon";
+        [durSlider, volSlider].forEach(paintRange);
+
+        durSlider.addEventListener("input", () => {
+            $("sonDurValue").textContent = `${durSlider.value} s`;
+            paintRange(durSlider);
+            scheduleRefresh(250);
+        });
+        volSlider.addEventListener("input", () => {
+            $("sonVolValue").textContent = `${volSlider.value}%`;
+            paintRange(volSlider);
+            if (masterNode && playing) masterNode.gain.value = parseInt(volSlider.value, 10) / 100;
+        });
+        [sel1, sel2, mapSel].forEach((el) => el.addEventListener("change", () => scheduleRefresh(80)));
+        [sel1, sel2].forEach((el) => el.addEventListener("change", () => { el.title = el.selectedOptions[0] ? el.selectedOptions[0].textContent : ""; }));
+
+        $("sonSwap").addEventListener("click", () => {
+            const a = sel1.value;
+            const b = sel2.value;
+            if (!b) return setStatus("Choose a sound 2 first, then swap.");
+            sel1.value = b;
+            sel2.value = a;
+            scheduleRefresh(50);
+        });
+
+        $("sonPlay1").addEventListener("click", () => start("single"));
+        $("sonCompare").addEventListener("click", () => start("compare"));
+        $("sonStop").addEventListener("click", () => { stopPlayback(); if (stale) scheduleRefresh(100); });
+        $("sonSnap").addEventListener("click", takeSnapshot);
+        $("sonWav").addEventListener("click", saveWav);
+        $("sonHear1").addEventListener("click", () => playing && playing.setLive(1));
+        $("sonHear2").addEventListener("click", () => playing && playing.setLive(2));
+
+        document.addEventListener("keydown", (e) => {
+            if (!playing || (e.target && /INPUT|SELECT|TEXTAREA/.test(e.target.tagName))) return;
+            if (e.key === "1") playing.setLive(1);
+            if (e.key === "2") playing.setLive(2);
+        });
+
+        const reset = $("btnReset");
+        if (reset) {
+            reset.addEventListener("click", () => {
+                stopPlayback();
+                snapshots.length = 0;
+                lastRender = null;
+                S.p1 = S.p2 = S.diff = null;
+                refreshOptions(true);
+                sel1.value = "recon";
+                sel2.value = "";
+                drawAll();
+                setStatus("Pick a picture for sound 1 and press play. Add a sound 2 to compare.");
+            });
+        }
+
+        // charts follow the pipeline: redraw whenever the app logs something or the status changes
+        const onPipelineChange = () => { stale = true; scheduleRefresh(450); };
+        const logEl = $("logList");
+        if (logEl) new MutationObserver(onPipelineChange).observe(logEl, { childList: true });
+        const statusText = $("statusText");
+        if (statusText) new MutationObserver(onPipelineChange).observe(statusText, { childList: true, characterData: true, subtree: true });
+
+        // repaint the graphs when the theme is switched
+        new MutationObserver(() => drawAll()).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+
+        // draw when the tab becomes visible / the window is resized
+        const graphs = host.querySelector(".sl-graphs");
+        if (window.ResizeObserver && graphs) {
+            new ResizeObserver(() => {
+                if (!pageActive()) return;
+                if (stale) scheduleRefresh(30);
+                else drawAll();
+            }).observe(graphs);
+        }
+        document.querySelectorAll('.viewer-nav__step, .viewer-nav__arrow').forEach((b) => {
+            b.addEventListener("click", () => setTimeout(() => { if (pageActive() && stale) scheduleRefresh(60); }, 30));
+        });
+
+        // keep the "not ready yet" labels in step with the pipeline
+        setInterval(() => { if (refreshOptions(false)) { stale = true; scheduleRefresh(250); } }, 700);
+
+        drawAll();
+    }
+
+    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
+    else init();
+})(typeof window !== "undefined" ? window : globalThis);
+
+</script>
+<script src="../static/js/modal.js?v=noise2"></script>
 </body>
 </html>

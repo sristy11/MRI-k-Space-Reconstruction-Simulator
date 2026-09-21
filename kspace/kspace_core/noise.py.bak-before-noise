@@ -1,0 +1,60 @@
+import numpy as np
+
+
+def signal_rms(kspace_array):
+    """Root-mean-square magnitude of the k-space signal (all coils together)."""
+    return float(np.sqrt(np.mean(np.abs(kspace_array) ** 2)))
+
+
+def add_kspace_noise(kspace_array, noise_level=0.0, seed=42):
+    """
+    Simulate a noisy MRI acquisition by adding complex Gaussian noise
+    to k-space.
+
+    In a real scanner the receiver adds thermal noise to every k-space
+    sample it measures, and that noise is complex (independent real and
+    imaginary parts) and white (same strength at every k-space point).
+    This function reproduces that model.
+
+    noise_level is a percentage of the k-space signal RMS:
+
+        sigma = (noise_level / 100) * RMS(kspace)
+
+    Because the inverse FFT preserves this ratio, for single-coil data
+    (uploaded photos) the noise in the reconstructed image is roughly
+    noise_level % of the image's own RMS intensity, regardless of the
+    image's brightness. The nominal SNR is
+    -20 * log10(noise_level / 100)  dB  (e.g. 10 % -> 20 dB, 1 % -> 40 dB).
+
+    Multi-coil data (coils, rows, cols) gets an independent noise
+    realization on every coil, as in a real receiver array. The level is
+    relative to the average coil signal, and combining coils (RSS) then
+    averages some of the noise out, so the final image is a little cleaner
+    than the nominal SNR suggests - this is real coil-array behaviour.
+
+    Returns a new array; the input is never modified. A noise_level of 0
+    returns the k-space unchanged.
+    """
+    if noise_level is None or noise_level <= 0:
+        return kspace_array
+
+    sigma = (noise_level / 100.0) * signal_rms(kspace_array)
+
+    rng = np.random.default_rng(seed)
+
+    # Split sigma between real and imaginary parts so that the *complex*
+    # noise has total RMS = sigma  (E|n|^2 = sigma^2).
+    part_sigma = sigma / np.sqrt(2.0)
+    noise = (
+        rng.normal(0.0, part_sigma, size=kspace_array.shape)
+        + 1j * rng.normal(0.0, part_sigma, size=kspace_array.shape)
+    )
+
+    return (kspace_array + noise).astype(kspace_array.dtype, copy=False)
+
+
+def approx_snr_db(noise_level):
+    """Approximate signal-to-noise ratio in dB for a given noise_level (%)."""
+    if noise_level is None or noise_level <= 0:
+        return None
+    return float(-20.0 * np.log10(noise_level / 100.0))

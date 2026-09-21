@@ -48,7 +48,6 @@ function setReelProgress(current, total) {
 async function reconstructSliceStack(dataset, numSlices, maskParams, onProgress) {
     const recons = [];
     const metrics = [];
-    const cleanMetrics = [];
 
     for (let i = 0; i < numSlices; i++) {
         if (!sliceVideoPlaying) break;
@@ -64,10 +63,9 @@ async function reconstructSliceStack(dataset, numSlices, maskParams, onProgress)
 
         recons.push(data.recon);
         metrics.push(data.metrics);
-        cleanMetrics.push(data.metrics_clean);
     }
 
-    return { recons, metrics, cleanMetrics };
+    return { recons, metrics };
 }
 
 function buildOffscreen(width, height, array2d, colorFn) {
@@ -166,7 +164,7 @@ async function playSliceVideo() {
         sliceVideoCounter.textContent = `0 / ${numSlices - 1}`;
         setSliceVideoStatus(`reconstructing slice 0 of ${numSlices - 1}\u2026`);
 
-        const { recons, metrics, cleanMetrics } = await reconstructSliceStack(dataset, numSlices, maskParams, (i, total) => {
+        const { recons, metrics } = await reconstructSliceStack(dataset, numSlices, maskParams, (i, total) => {
             setSliceVideoStatus(`reconstructing slice ${i} of ${total - 1}\u2026`);
             sliceVideoCounter.textContent = `${i} / ${total - 1}`;
         });
@@ -186,7 +184,6 @@ async function playSliceVideo() {
         metricMSE.textContent = fmt(metrics[0].mse, 6);
         metricPSNR.textContent = metrics[0].psnr === null ? "∞ dB" : `${fmt(metrics[0].psnr, 2)} dB`;
         metricNRMSE.textContent = fmt(metrics[0].nrmse, 4);
-        renderNoiseReview(metrics[0], cleanMetrics[0], maskParams.noise_level);
         setReelProgress(0, lastIndex);
 
         for (let i = 0; i < lastIndex && sliceVideoPlaying; i++) {
@@ -208,7 +205,6 @@ async function playSliceVideo() {
             metricMSE.textContent = fmt(metrics[i + 1].mse, 6);
             metricPSNR.textContent = metrics[i + 1].psnr === null ? "∞ dB" : `${fmt(metrics[i + 1].psnr, 2)} dB`;
             metricNRMSE.textContent = fmt(metrics[i + 1].nrmse, 4);
-            renderNoiseReview(metrics[i + 1], cleanMetrics[i + 1], maskParams.noise_level);
         }
 
         if (sliceVideoPlaying) {
