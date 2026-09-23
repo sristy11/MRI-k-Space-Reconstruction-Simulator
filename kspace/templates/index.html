@@ -354,16 +354,12 @@ button, select, input{ font-family: inherit; }
   letter-spacing: 0;
 }
 
-/* Run panel stays visible at the bottom of the scrolling left column */
+/* Run buttons: an ordinary panel at the end of the left column (the column
+   scrolls by itself on short screens; nothing is pinned over the controls) */
 .panel--actions{
-  position: sticky;
-  bottom: 0;
-  z-index: 3;
   display: flex;
   flex-direction: column;
   gap: 8px;
-  background: linear-gradient(180deg, var(--panel), var(--panel));
-  box-shadow: 0 -14px 22px -6px var(--bg), var(--shadow);
 }
 
 .field{ margin-bottom: 14px; }
@@ -1106,14 +1102,15 @@ input[type="range"].slider::-moz-range-thumb{ width: 12px; height: 12px; border-
 .modal{
   position: fixed;
   inset: 0;
-  z-index: 100;
+  z-index: 2147483000;    /* deliberately enormous: nothing on this page should ever be able to sit above a modal */
+  isolation: isolate;      /* this element's own stacking context can't be reordered by anything inside it */
   display: none;
   align-items: center;
   justify-content: center;
   padding: 24px;
 }
 .modal.is-open{ display: flex; }
-.modal__backdrop{ position: absolute; inset: 0; background: rgba(3,5,8,0.72); backdrop-filter: blur(4px); }
+.modal__backdrop{ position: absolute; inset: 0; background: rgba(3,5,8,0.88); backdrop-filter: blur(4px); }
 .modal__content{
   position: relative;
   z-index: 1;
@@ -1407,39 +1404,6 @@ input[type="range"].slider::-moz-range-thumb{ width: 12px; height: 12px; border-
             <button type="button" class="btn btn--small" id="btnPaintInvert">invert</button>
           </div>
         </div>
-
-        <!-- Large drawable paint editor — same shared mask data as the small
-             inline canvas above; closing this just reverts to that small view. -->
-        <div class="modal" id="paintModal" aria-hidden="true">
-          <div class="modal__backdrop" id="paintModalBackdrop"></div>
-          <div class="modal__content" role="dialog" aria-modal="true" aria-labelledby="paintModalTitle">
-            <div class="modal__header">
-              <h3 class="modal__title" id="paintModalTitle">Paint k-space to sample</h3>
-              <span class="field__value field__value--soft" id="paintGridValueLarge">256×256</span>
-              <span class="field__value" id="paintDensityValueLarge">0%</span>
-              <button type="button" class="modal__close" id="btnPaintModalClose" aria-label="close">×</button>
-            </div>
-            <div class="modal__body paint-modal__body">
-              <div class="paint-editor__canvas-wrap paint-editor__canvas-wrap--large">
-                <canvas id="canvasPaintMaskLarge" width="256" height="256"></canvas>
-              </div>
-              <div class="paint-modal__controls">
-                <p class="paint-editor__hint" style="margin-top:0">drag to paint — left click adds, right click / shift+click erases. the grid auto-matches the loaded k-space, so masks work for uploads and .h5 scans alike.</p>
-                <div class="field__row" style="margin-top: 10px;">
-                  <span class="field__label">Brush size</span>
-                  <span class="field__value" id="paintBrushValueLarge">10</span>
-                </div>
-                <input type="range" id="paintBrushSizeLarge" min="2" max="60" step="1" value="10" class="slider">
-                <div class="paint-editor__actions">
-                  <button type="button" class="btn btn--small" id="btnPaintClearLarge">clear</button>
-                  <button type="button" class="btn btn--small" id="btnPaintFillLarge">fill all</button>
-                  <button type="button" class="btn btn--small" id="btnPaintInvertLarge">invert</button>
-                </div>
-                <button type="button" class="btn btn--primary" id="btnPaintDoneLarge" style="margin-top: 14px;">✓ Done</button>
-              </div>
-            </div>
-          </div>
-        </div>
       </section>
 
       <section class="panel" id="noisePanel">
@@ -1646,6 +1610,39 @@ input[type="range"].slider::-moz-range-thumb{ width: 12px; height: 12px; border-
   </footer>
 
 </div>
+
+  <!-- Large drawable paint editor — same shared mask data as the small
+       inline canvas above; closing this just reverts to that small view. -->
+  <div class="modal" id="paintModal" aria-hidden="true">
+    <div class="modal__backdrop" id="paintModalBackdrop"></div>
+    <div class="modal__content" role="dialog" aria-modal="true" aria-labelledby="paintModalTitle">
+      <div class="modal__header">
+        <h3 class="modal__title" id="paintModalTitle">Paint k-space to sample</h3>
+        <span class="field__value field__value--soft" id="paintGridValueLarge">256×256</span>
+        <span class="field__value" id="paintDensityValueLarge">0%</span>
+        <button type="button" class="modal__close" id="btnPaintModalClose" aria-label="close">×</button>
+      </div>
+      <div class="modal__body paint-modal__body">
+        <div class="paint-editor__canvas-wrap paint-editor__canvas-wrap--large">
+          <canvas id="canvasPaintMaskLarge" width="256" height="256"></canvas>
+        </div>
+        <div class="paint-modal__controls">
+          <p class="paint-editor__hint" style="margin-top:0">drag to paint — left click adds, right click / shift+click erases. the grid auto-matches the loaded k-space, so masks work for uploads and .h5 scans alike.</p>
+          <div class="field__row" style="margin-top: 10px;">
+            <span class="field__label">Brush size</span>
+            <span class="field__value" id="paintBrushValueLarge">10</span>
+          </div>
+          <input type="range" id="paintBrushSizeLarge" min="2" max="60" step="1" value="10" class="slider">
+          <div class="paint-editor__actions">
+            <button type="button" class="btn btn--small" id="btnPaintClearLarge">clear</button>
+            <button type="button" class="btn btn--small" id="btnPaintFillLarge">fill all</button>
+            <button type="button" class="btn btn--small" id="btnPaintInvertLarge">invert</button>
+          </div>
+          <button type="button" class="btn btn--primary" id="btnPaintDoneLarge" style="margin-top: 14px;">✓ Done</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
 <div class="modal" id="imageModal" aria-hidden="true">
   <div class="modal__backdrop" id="modalBackdrop"></div>
