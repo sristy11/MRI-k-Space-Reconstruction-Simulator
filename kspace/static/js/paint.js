@@ -206,6 +206,32 @@ function getPaintMaskArray() {
     return arr;
 }
 
+// Loads an externally-produced mask (e.g. from the target-error auto-mask
+// search) into the paint grid, so it becomes the active custom_mask and the
+// user can see it and keep hand-editing it like any other painted mask.
+function setPaintMaskArray(arr) {
+    if (!Array.isArray(arr) || arr.length === 0 || !Array.isArray(arr[0])) return;
+    const h = arr.length;
+    const w = arr[0].length;
+
+    paintCanvases.forEach((canvas) => {
+        canvas.width = w;
+        canvas.height = h;
+    });
+    paintW = w;
+    paintH = h;
+    paintMask = new Uint8Array(w * h);
+    for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+            paintMask[paintIndex(x, y)] = arr[y][x] ? 1 : 0;
+        }
+    }
+
+    updatePaintGridLabel();
+    requestPaintRedraw();
+    updatePaintDensity();
+}
+
 function clearPaintMask() {
     paintMask.fill(0);
     requestPaintRedraw();

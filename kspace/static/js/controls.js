@@ -343,6 +343,7 @@ btnReconstruct.addEventListener("click", async () => {
         });
 
         window.LAST_RECON = data.recon;
+        if (window.updateMRIComparison) window.updateMRIComparison(data);
         renderRecon(true);
         emptyRecon.style.display = "none";
 
@@ -370,6 +371,7 @@ btnReconstruct.addEventListener("click", async () => {
 // ---- reset session ----
 btnReset.addEventListener("click", () => {
     if (typeof stopSliceVideo === "function") stopSliceVideo();
+    if (window.clearMRIComparison) window.clearMRIComparison();
 
     [canvasOriginalEl, canvasKspaceFull, canvasKspaceUnder, canvasMask, canvasRecon, canvasError].forEach(
         clearCanvas

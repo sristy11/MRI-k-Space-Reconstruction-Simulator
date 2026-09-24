@@ -1,0 +1,18 @@
+
+.frequency-lab { margin: 24px; padding: 24px; border: 1px solid #536071; border-radius: 12px; }
+.frequency-lab h2 { font-size: 20px; margin-bottom: 12px; }
+.frequency-lab p { line-height: 1.6; margin: 12px 0; font-size: 13px; }
+.frequency-controls { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin: 16px 0; }
+.frequency-controls select,.frequency-controls button { color: #e9edf5; background: #202b39; padding: 10px; border: 1px solid #73839b; border-radius: 6px; }
+.frequency-controls button { cursor: pointer; }
+.frequency-grid { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 24px; }
+.frequency-grid figure { margin: 0; }
+.frequency-grid figcaption,.comparison-labels { font-size: 12px; margin-bottom: 10px; min-height: 30px; }
+.comparison-labels { display: flex; justify-content: space-between; gap: 16px; }
+.frequency-grid canvas { display: block; width: 100%; background: #000; image-rendering: pixelated; }
+.frequency-grid figure canvas:last-child { width: 100px; }
+.comparison-stage { position: relative; touch-action: none; cursor: ew-resize; overflow: hidden; }
+.comparison-divider { position: absolute; top: 0; bottom: 0; left: 50%; width: 2px; background: #fff; pointer-events: none; }
+.comparison-divider span { position: absolute; top: 50%; transform: translate(-50%,-50%); border-radius: 50%; padding: 9px; color: #111; background: white; }
+#comparisonSlider { width: 100%; margin: 16px 0; }
+@media(max-width: 800px) { .frequency-grid { grid-template-columns: 1fr; } .frequency-lab { margin: 12px; padding: 16px; } }

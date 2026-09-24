@@ -14,6 +14,7 @@ from kspace_core.sampling.random import random_mask
 from kspace_core.reconstruct import reconstruct
 from kspace_core.metrics import mse, psnr, nrmse
 from kspace_core.noise import add_kspace_noise, approx_snr_db
+from kspace_core.auto_mask import search_target_mask
 
 
 router = APIRouter(prefix="/pipeline", tags=["Pipeline"])
@@ -57,6 +58,24 @@ class MaskRequest(SourceFields):
 class DatasetPreviewRequest(BaseModel):
     dataset: str
     slice_index: Optional[int] = None
+
+
+class AutoMaskRequest(SourceFields):
+    """
+    Instead of choosing a sampling pattern directly, the user states the
+    reconstruction error they're willing to accept and we search for the
+    undersampling mask that gets closest to it. See kspace_core/auto_mask.py
+    for how the search works.
+    """
+    metric: Literal["psnr", "nrmse", "mse"]
+    target_value: float
+    family: Literal["variable_density", "random_lines", "cartesian", "radial"] = "variable_density"
+    center_fraction: float = Field(default=0.04, ge=0.0, le=0.5)
+    noise_level: float = Field(default=0.0, ge=0.0, le=100.0)
+    noise_seed: int = 42
+    tolerance: Optional[float] = Field(default=None, gt=0.0)
+    max_iterations: int = Field(default=24, ge=1, le=60)
+    seed: int = 7
 
 
 # ---------------------------------------------------------------------------
@@ -304,6 +323,7 @@ async def run_reconstruct(payload: MaskRequest):
     recon_display = _normalize_for_display(recon)
 
     return {
+        "reference": _normalize_for_display(reference_image).tolist(),
         "recon": recon_display.tolist(),
         "error": error_display.tolist(),
         "metrics": {
@@ -315,3 +335,110 @@ async def run_reconstruct(payload: MaskRequest):
         "noise_level": payload.noise_level,
         "snr_db": approx_snr_db(payload.noise_level),
     }
+
+
+@router.post("/auto-mask")
+async def auto_mask(payload: AutoMaskRequest):
+    """
+    Given a target reconstruction error (PSNR / NRMSE / MSE), search for the
+    undersampling mask that gets closest to it and return everything /mask
+    and /reconstruct would (mask, undersampled k-space, reconstruction,
+    error map, metrics) in one call, plus how the search went.
+    """
+    kspace, reference_image = _resolve_source(payload)
+    shape = kspace.shape[-2:]
+
+    result = search_target_mask(
+        kspace=kspace,
+        reference_image=reference_image,
+        reconstruct_fn=lambda ks: _reconstruct_from(ks, payload.source),
+        shape=shape,
+        metric=payload.metric,
+        target_value=payload.target_value,
+        family=payload.family,
+        center_fraction=payload.center_fraction,
+        noise_level=payload.noise_level,
+        noise_seed=payload.noise_seed,
+        seed=payload.seed,
+        max_iterations=payload.max_iterations,
+        tolerance=payload.tolerance,
+    )
+
+    mask = result["mask"]
+    recon = result["recon"]
+
+    err_mse = float(mse(reference_image, recon))
+    err_psnr = psnr(reference_image, recon)
+    err_nrmse = float(nrmse(reference_image, recon))
+
+    error_map = np.abs(reference_image - recon)
+    err_max = float(error_map.max())
+    error_display = (error_map / err_max) if err_max > 0 else error_map
+    recon_display = _normalize_for_display(recon)
+
+    noisy = add_kspace_noise(kspace, payload.noise_level, payload.noise_seed)
+    acquired = noisy * (mask[None, :, :] if kspace.ndim == 3 else mask)
+    display_kspace = acquired[0] if acquired.ndim == 3 else acquired
+    kspace_under = log_magnitude_spectrum(display_kspace)
+
+    return {
+        # Same shape as /mask + /reconstruct combined, so the frontend can
+        # render it straight into the existing viewport canvases.
+        "mask": mask.tolist(),
+        "kspace_under": kspace_under.tolist(),
+        "reference": _normalize_for_display(reference_image).tolist(),
+        "recon": recon_display.tolist(),
+        "error": error_display.tolist(),
+        "density": float(mask.mean()),
+        "points_kept": int(mask.sum()),
+        "metrics": {
+            "mse": err_mse,
+            "psnr": None if np.isinf(err_psnr) else float(err_psnr),
+            "nrmse": err_nrmse,
+        },
+        "target": {"metric": payload.metric, "value": payload.target_value},
+        "achieved_value": result["value"],
+        "achievable": result["achievable"],
+        "iterations": result["iterations"],
+        "family": payload.family,
+        "noise_level": payload.noise_level,
+        "snr_db": approx_snr_db(payload.noise_level),
+    }
+
+class FrequencyRequest(SourceFields):
+    cutoff: float = Field(default=0.25, ge=0.0, le=1.0)
+
+
+def frequency_masks(shape, cutoff):
+    """Complementary radial masks on centered k-space; 1 reaches corners.
+
+    fftfreq + fftshift puts DC exactly at rows//2, cols//2, including
+    odd and rectangular arrays. Zero explicitly keeps no frequencies.
+    """
+    fy = np.fft.fftshift(np.fft.fftfreq(shape[0]))
+    fx = np.fft.fftshift(np.fft.fftfreq(shape[1]))
+    radius = np.hypot(fy[:, None], fx[None, :])
+    maximum = float(radius.max())
+    low = (radius <= cutoff * maximum).astype(float)
+    if cutoff == 0:
+        low[:] = 0
+    return low, 1.0 - low
+
+
+@router.post("/frequency-experiment")
+async def frequency_experiment(payload: FrequencyRequest):
+    """Isolate low/high frequencies of the full source, without sampling/noise."""
+    kspace, reference = _resolve_source(payload)
+    low, high = frequency_masks(kspace.shape[-2:], payload.cutoff)
+    # One common intensity scale preserves brightness differences.
+    scale = float(np.percentile(reference, 99.5)) or 1.0
+    results = {}
+    for name, mask in (("low", low), ("high", high)):
+        acquired = kspace * mask
+        image = _reconstruct_from(acquired, payload.source)
+        results[name] = {
+            "recon": np.clip(image / scale, 0, 1).tolist(),
+            "mask": mask.tolist(),
+            "density": float(mask.mean()),
+        }
+    return {"reference": np.clip(reference / scale, 0, 1).tolist(), **results}

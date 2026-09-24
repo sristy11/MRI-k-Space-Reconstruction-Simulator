@@ -526,6 +526,20 @@ select.slider,
 select.slider:hover, .sl-select:hover{ border-color: var(--line-hover); }
 select.slider option, .sl-select option{ background: var(--option-bg); color: var(--text); }
 
+.input-text{
+  width: 100%;
+  height: 36px;
+  padding: 0 11px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-sm);
+  background-color: var(--panel-2);
+  color: var(--text);
+  font-size: 12.5px;
+  transition: border-color .14s;
+}
+.input-text:hover{ border-color: var(--line-hover); }
+.input-text:focus{ outline: none; border-color: var(--accent-line); }
+
 input[type="range"].slider{
   -webkit-appearance: none;
   appearance: none;
@@ -1245,6 +1259,7 @@ input[type="range"].slider::-moz-range-thumb{ width: 12px; height: 12px; border-
 }
 
 </style>
+<link rel="stylesheet" href="/static/css/frequency.css">
 </head>
 <body data-ui="2-single">
 
@@ -1441,6 +1456,67 @@ input[type="range"].slider::-moz-range-thumb{ width: 12px; height: 12px; border-
         </button>
       </section>
 
+      <section class="panel" id="autoMaskPanel">
+        <h2 class="panel__eyebrow"><span class="panel__num">05</span>Target error → auto mask</h2>
+        <p class="paint-editor__hint">Instead of picking a pattern by hand, say what reconstruction error you're
+          willing to accept and this searches for the undersampling mask that gets closest to it (uses the current
+          noise setting above). The result loads as a custom mask you can still hand-edit.</p>
+
+        <div class="field">
+          <span class="field__label">Error metric</span>
+          <select id="autoMaskMetric" class="slider">
+            <option value="nrmse">NRMSE (lower is better)</option>
+            <option value="psnr">PSNR, dB (higher is better)</option>
+            <option value="mse">MSE (lower is better)</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <span class="field__label" id="autoMaskTargetLabel">Target NRMSE</span>
+          <input type="number" id="autoMaskTarget" class="input-text" value="0.05" step="0.01" min="0">
+        </div>
+
+        <div class="field">
+          <span class="field__label">Mask style to search</span>
+          <select id="autoMaskFamily" class="slider">
+            <option value="variable_density">Variable-density (custom, 2D)</option>
+            <option value="random_lines">Random lines (custom, row-based)</option>
+            <option value="cartesian">Cartesian-like (line skipping)</option>
+            <option value="radial">Radial-like (spokes)</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <div class="field__row">
+            <span class="field__label">Fully-sampled center</span>
+            <span class="field__value" id="autoMaskCenterValue">4%</span>
+          </div>
+          <input type="range" id="autoMaskCenterSlider" min="0" max="20" step="1" value="4" class="slider">
+        </div>
+
+        <button type="button" class="btn btn--accent" id="btnAutoMask">
+          <span>Find mask for target error</span>
+        </button>
+
+        <dl class="metrics" id="autoMaskReadout" style="margin-top: 12px;">
+          <div class="metrics__row">
+            <dt>Achieved value</dt>
+            <dd id="autoMaskAchieved">—</dd>
+          </div>
+          <div class="metrics__row">
+            <dt>Density found</dt>
+            <dd id="autoMaskDensity">—</dd>
+          </div>
+          <div class="metrics__row">
+            <dt>Search iterations</dt>
+            <dd id="autoMaskIterations">—</dd>
+          </div>
+        </dl>
+        <p class="callout callout--danger" id="autoMaskUnreachable" style="display: none;">
+          Target is outside what's achievable for this image/family — showing the closest reachable result instead.
+        </p>
+      </section>
+
     </aside>
 
     <!-- ---------- CENTER: workspace ---------- -->
@@ -1604,6 +1680,36 @@ input[type="range"].slider::-moz-range-thumb{ width: 12px; height: 12px; border-
 
   </main>
 
+  <section class="frequency-lab panel" id="frequencyLab">
+    <h2>Compare MRI &amp; explore frequencies</h2>
+    <p>Drag the divider or use the slider to compare the original with a reconstruction.</p>
+    <div class="frequency-controls">
+      <label for="comparisonMode">Compare original with</label>
+      <select id="comparisonMode">
+        <option value="pipeline">Current pipeline reconstruction</option>
+        <option value="low">Preserve low / remove high frequencies</option>
+        <option value="high">Preserve high / remove low frequencies</option>
+      </select>
+      <label for="frequencyCutoff">Center radius: <output id="frequencyCutoffValue">25%</output></label>
+      <input id="frequencyCutoff" type="range" min="0" max="100" value="25" aria-label="Low frequency cutoff radius">
+      <button id="btnFrequency" type="button">Apply frequency experiment</button>
+    </div>
+    <p id="frequencyStatus" role="status">Load an image or dataset slice, then reconstruct or apply the experiment.</p>
+    <div class="frequency-grid">
+      <div>
+        <div class="comparison-labels"><span>Original</span><span id="comparisonRightLabel">Reconstructed</span></div>
+        <div class="comparison-stage" id="comparisonStage">
+          <canvas id="comparisonCanvas" width="256" height="256"></canvas>
+          <div id="comparisonDivider" class="comparison-divider"><span>↔</span></div>
+        </div>
+        <label for="comparisonSlider">Original revealed: <output id="comparisonValue">50%</output></label>
+        <input id="comparisonSlider" type="range" min="0" max="100" value="50" aria-label="Original image reveal percentage">
+      </div>
+      <figure><figcaption>Outer removed · low frequencies preserved</figcaption><canvas id="frequencyLow" width="256" height="256"></canvas><p>Mostly broad structure and contrast.</p><canvas id="frequencyLowMask" width="128" height="128"></canvas></figure>
+      <figure><figcaption>Center removed · high frequencies preserved</figcaption><canvas id="frequencyHigh" width="256" height="256"></canvas><p>Mostly edges and fine detail.</p><canvas id="frequencyHighMask" width="128" height="128"></canvas></figure>
+    </div>
+    <p>White mask pixels are retained. Radius runs from the center to the farthest corner; 0% keeps no low frequencies and 100% keeps all. Both experiments use full source k-space, independently of sampling and noise, with a shared brightness scale.</p>
+  </section>
   <footer class="console__footer">
     <span>Computation runs locally on the FastAPI backend · NumPy FFT</span>
     <span>Mask grid follows k-space shape</span>
@@ -1924,10 +2030,12 @@ viewerNextBtn.addEventListener("click", () => {
 })();
 
 </script>
-<script src="../static/js/controls.js?v=noise2"></script>
+<script src="../static/js/controls.js?v=frequency1"></script>
 <script src="../static/js/paint.js?v=noise2"></script>
-<script src="../static/js/main.js?v=noise2"></script>
-<script src="../static/js/sliceVideo.js?v=noise2"></script>
+<script src="../static/js/autoMask.js?v=frequency1"></script>
+<script src="../static/js/main.js?v=frequency1"></script>
+<script src="../static/js/frequency.js?v=1"></script>
+<script src="../static/js/sliceVideo.js?v=frequency1"></script>
 <script>
 /*
  * K-SPACE sonification

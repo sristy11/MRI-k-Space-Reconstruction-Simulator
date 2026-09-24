@@ -14,6 +14,7 @@ fileInput.addEventListener("change", () => {
     if (fileInput.files.length > 0) {
 
         const file = fileInput.files[0];
+        if (window.clearMRIComparison) window.clearMRIComparison();
 
         console.log("Selected file:", file);
 
@@ -216,6 +217,7 @@ btnLoadDataset.addEventListener("click", async () => {
 
     const sliceIndex = parseInt(sliceSlider.value, 10);
 
+    if (window.clearMRIComparison) window.clearMRIComparison();
     statusText.textContent = "loading dataset slice...";
 
     try {

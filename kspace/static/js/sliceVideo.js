@@ -23,6 +23,8 @@ const SLICE_VIDEO_IDLE_STATUS = "click play to reconstruct every slice";
 const SLICE_VIDEO_FRAME_MS = 450; // time to cross-fade from one slice's reconstruction into the next
 
 let sliceVideoPlaying = false;
+let sliceVideoBusy = false;
+let videoLockedControls = [];
 
 function setSliceVideoStatus(text) {
     sliceVideoStatus.textContent = text;
@@ -49,6 +51,8 @@ async function reconstructSliceStack(dataset, numSlices, maskParams, onProgress)
     const recons = [];
     const metrics = [];
     const cleanMetrics = [];
+    const errors = [];
+    const references = [];
 
     for (let i = 0; i < numSlices; i++) {
         if (!sliceVideoPlaying) break;
@@ -62,12 +66,15 @@ async function reconstructSliceStack(dataset, numSlices, maskParams, onProgress)
             ...maskParams,
         });
 
+        if (!sliceVideoPlaying) break;
         recons.push(data.recon);
+        errors.push(data.error);
+        references.push(data.reference);
         metrics.push(data.metrics);
         cleanMetrics.push(data.metrics_clean);
     }
 
-    return { recons, metrics, cleanMetrics };
+    return { recons, metrics, cleanMetrics, errors, references };
 }
 
 function buildOffscreen(width, height, array2d, colorFn) {
@@ -124,7 +131,7 @@ function crossfadeSlices(canvas, from, to, duration, colorFn) {
 }
 
 async function playSliceVideo() {
-    if (sliceVideoPlaying) return;
+    if (sliceVideoBusy) return;
 
     if (window.APP_STATE.source !== "dataset" || !window.APP_STATE.dataset) {
         statusTextEl.textContent = "load a dataset slice first";
@@ -152,6 +159,13 @@ async function playSliceVideo() {
     const maskParams = maskPayload();
 
     sliceVideoPlaying = true;
+    sliceVideoBusy = true;
+    // Prevent competing requests / canvas animations while video owns the view.
+    videoLockedControls = [...document.querySelectorAll('button, input, select')]
+        .filter(el => el !== btnPlaySliceVideo && el.id !== 'comparisonSlider')
+        .map(el => [el, el.disabled]);
+    videoLockedControls.forEach(([el]) => { el.disabled = true; });
+    if (window.clearFrequencyExperiment) window.clearFrequencyExperiment();
     sliceVideoReel.classList.add("is-playing");
     btnPlaySliceVideo.setAttribute("aria-label", "stop reconstructed slice video");
     btnLoadDataset.disabled = true;
@@ -166,7 +180,7 @@ async function playSliceVideo() {
         sliceVideoCounter.textContent = `0 / ${numSlices - 1}`;
         setSliceVideoStatus(`reconstructing slice 0 of ${numSlices - 1}\u2026`);
 
-        const { recons, metrics, cleanMetrics } = await reconstructSliceStack(dataset, numSlices, maskParams, (i, total) => {
+        const { recons, metrics, cleanMetrics, errors, references } = await reconstructSliceStack(dataset, numSlices, maskParams, (i, total) => {
             setSliceVideoStatus(`reconstructing slice ${i} of ${total - 1}\u2026`);
             sliceVideoCounter.textContent = `${i} / ${total - 1}`;
         });
@@ -176,6 +190,12 @@ async function playSliceVideo() {
         }
 
         _cancelCanvasAnimation(canvasRecon);
+        _cancelCanvasAnimation(canvasError);
+        _cancelCanvasAnimation(canvasOriginal);
+        emptyError.style.display = "none";
+        renderGrayscale(canvasRecon, recons[0]);
+        renderHot(canvasError, errors[0]);
+        renderGrayscale(canvasOriginal, references[0]);
         showStep("canvasRecon");
         emptyRecon.style.display = "none";
 
@@ -183,6 +203,10 @@ async function playSliceVideo() {
         const lastIndex = recons.length - 1;
 
         window.LAST_RECON = recons[0];
+        window.updateMRIComparison({reference: references[0], recon: recons[0]});
+        sliceSlider.value = 0;
+        sliceValue.textContent = 0;
+        window.APP_STATE = { source: "dataset", filename: null, dataset, sliceIndex: 0 };
         metricMSE.textContent = fmt(metrics[0].mse, 6);
         metricPSNR.textContent = metrics[0].psnr === null ? "∞ dB" : `${fmt(metrics[0].psnr, 2)} dB`;
         metricNRMSE.textContent = fmt(metrics[0].nrmse, 4);
@@ -193,7 +217,15 @@ async function playSliceVideo() {
             setSliceVideoStatus(`slice ${i} \u2192 ${i + 1} of ${lastIndex}`);
             sliceVideoCounter.textContent = `${i + 1} / ${lastIndex}`;
 
-            await crossfadeSlices(canvasRecon, recons[i], recons[i + 1], SLICE_VIDEO_FRAME_MS, colorFn);
+            await Promise.all([
+                crossfadeSlices(canvasRecon, recons[i], recons[i + 1], SLICE_VIDEO_FRAME_MS, colorFn),
+                crossfadeSlices(canvasError, errors[i], errors[i + 1], SLICE_VIDEO_FRAME_MS, _hot),
+                crossfadeSlices(canvasOriginal, references[i], references[i + 1], SLICE_VIDEO_FRAME_MS, _grayscale),
+            ]);
+            // Snap to a complete frame on stop so image, heatmap and metrics agree.
+            renderGrayscale(canvasOriginal, references[i + 1]);
+            renderHot(canvasError, errors[i + 1]);
+            window.updateMRIComparison({reference: references[i + 1], recon: recons[i + 1]});
 
             // Keep slider, label, metrics, progress bar, and the pipeline's
             // notion of "current slice" all pointing at whatever is actually
@@ -205,6 +237,7 @@ async function playSliceVideo() {
             setReelProgress(i + 1, lastIndex);
 
             window.LAST_RECON = recons[i + 1];
+            renderRecon();
             metricMSE.textContent = fmt(metrics[i + 1].mse, 6);
             metricPSNR.textContent = metrics[i + 1].psnr === null ? "∞ dB" : `${fmt(metrics[i + 1].psnr, 2)} dB`;
             metricNRMSE.textContent = fmt(metrics[i + 1].nrmse, 4);
@@ -219,12 +252,19 @@ async function playSliceVideo() {
         statusTextEl.textContent = "slice video failed";
         addLog(`error: ${error.message}`);
     } finally {
+        sliceVideoBusy = false;
+        videoLockedControls.forEach(([el, disabled]) => { el.disabled = disabled; });
+        videoLockedControls = [];
         stopSliceVideo();
     }
 }
 
 function stopSliceVideo() {
     sliceVideoPlaying = false;
+    if (sliceVideoBusy) {
+        setSliceVideoStatus("stopping…");
+        return;
+    }
     sliceVideoReel.classList.remove("is-playing");
     btnPlaySliceVideo.setAttribute("aria-label", "play reconstructed slice video");
     btnLoadDataset.disabled = false;
