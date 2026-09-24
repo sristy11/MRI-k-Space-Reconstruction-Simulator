@@ -357,6 +357,20 @@ function _putArrayOnCanvas(
     // Visible canvas
     // --------------------------------------------------------
 
+    // Match the canvas backing store to the array's real shape so
+    // non-square data (e.g. a 640x368 .h5 slice) isn't squashed into
+    // the 256x256 default. CSS object-fit: contain letterboxes it.
+    if (canvas.width !== width || canvas.height !== height) {
+        canvas.width = width;
+        canvas.height = height;
+    }
+    // Make the frame match the data's aspect ratio so there are no
+    // letterbox bars around non-square (.h5) images.
+    if (canvas.parentElement &&
+        canvas.parentElement.classList.contains("viewcell__frame")) {
+        canvas.parentElement.style.setProperty("--ar", width / height);
+    }
+
     const ctx =
         canvas.getContext("2d");
 

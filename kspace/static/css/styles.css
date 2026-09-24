@@ -113,7 +113,7 @@ button, select, input{ font-family: inherit; }
   height: 34px;
   border-radius: 10px;
   color: var(--accent-ink);
-  background: linear-gradient(145deg, #5EEAD4, #14B8A6);
+  background: linear-gradient(145deg, #5EEAD4, #9f5fd4);
   box-shadow: 0 0 0 1px rgba(255,255,255,0.12) inset, 0 4px 14px rgba(20,184,166,0.35);
 }
 .brand__mark svg{ width: 20px; height: 20px; }
@@ -765,9 +765,11 @@ input[type="range"].slider::-moz-range-thumb{ width: 12px; height: 12px; border-
 
 /* the picture frames */
 .viewcell__frame{
+  --ar: 1;
   position: relative;
-  width: 100%;
-  aspect-ratio: 1 / 1;
+  width: min(100%, calc(74vh * var(--ar)));
+  margin-inline: auto;
+  aspect-ratio: var(--ar);
   border: 1px solid var(--line);
   border-radius: var(--r);
   overflow: hidden;
@@ -795,6 +797,11 @@ input[type="range"].slider::-moz-range-thumb{ width: 12px; height: 12px; border-
   text-align: center;
   pointer-events: none;
 }
+/* pair pages (incl. .h5 source + k-space): fill the whole column at the
+   data's true aspect ratio - no height cap, no letterbox bars */
+.viewer-page--pair .viewcell__frame{ width: 100%; }
+.viewer-stage.is-pair{ padding: 12px; }
+.viewer-page--pair.is-active{ gap: 14px; max-width: none; }
 .viewcell__frame--clickable{ cursor: zoom-in; }
 .viewcell__frame--clickable:hover{ border-color: var(--line-strong); }
 .viewcell__zoom-hint{

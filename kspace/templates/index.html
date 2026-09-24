@@ -889,7 +889,7 @@ input[type="range"].slider::-moz-range-thumb{ width: 12px; height: 12px; border-
 
 /* single-image pages: one centred square */
 .viewer-page:not(.viewer-page--pair):not(.viewer-page--wide) .viewcell__frame{
-  width: min(100%, 600px);
+  width: min(100%, 600px, calc(74vh * var(--ar)));
   margin: 0 auto;
 }
 
@@ -969,9 +969,11 @@ input[type="range"].slider::-moz-range-thumb{ width: 12px; height: 12px; border-
 
 /* the picture frames */
 .viewcell__frame{
+  --ar: 1;
   position: relative;
-  width: 100%;
-  aspect-ratio: 1 / 1;
+  width: min(100%, calc(74vh * var(--ar)));
+  margin-inline: auto;
+  aspect-ratio: var(--ar);
   border: 1px solid var(--line);
   border-radius: var(--r);
   overflow: hidden;
@@ -999,6 +1001,11 @@ input[type="range"].slider::-moz-range-thumb{ width: 12px; height: 12px; border-
   text-align: center;
   pointer-events: none;
 }
+/* pair pages (incl. .h5 source + k-space): fill the whole column at the
+   data's true aspect ratio - no height cap, no letterbox bars */
+.viewer-page--pair .viewcell__frame{ width: 100%; }
+.viewer-stage.is-pair{ padding: 12px; }
+.viewer-page--pair.is-active{ gap: 14px; max-width: none; }
 .viewcell__frame--clickable{ cursor: zoom-in; }
 .viewcell__frame--clickable:hover{ border-color: var(--line-strong); }
 .viewcell__zoom-hint{
@@ -1776,7 +1783,7 @@ input[type="range"].slider::-moz-range-thumb{ width: 12px; height: 12px; border-
   </div>
 </div>
 
-<script src="../static/js/canvasRender.js?v=ui2"></script>
+<script src="../static/js/canvasRender.js?v=aspect4"></script>
 <script>
 // Single-view viewport: shows exactly one "page" at a time. Most pages hold
 // one image; two pages (mask+undersampled k-space, recon+error) hold a pair,
@@ -1806,7 +1813,7 @@ const viewerStepButtons = document.querySelectorAll(".viewer-nav__step");
 
 // The tabs in the toolbar define the pages (and their order), so adding a
 // tab + a page in the HTML is all it takes to add a view.
-const VIEWER_PAGES = Array.from(viewerStepButtons).map((btn) => btn.dataset.page);
+let VIEWER_PAGES = Array.from(viewerStepButtons).map((btn) => btn.dataset.page);
 
 let currentPageIndex = 0;
 
@@ -1839,6 +1846,60 @@ function showPage(pageId) {
 function showStep(canvasId) {
     const pageId = CANVAS_TO_PAGE[canvasId];
     if (pageId) showPage(pageId);
+}
+
+// .h5 library mode: show Source (A) and full k-space (B) together on one page
+// (side by side) and hide the separate "k-space" tab. Upload mode restores the
+// original one-image-per-page layout. The frames are MOVED, not copied, so all
+// canvas ids / overlays / modal hooks keep working.
+const ALL_VIEWER_PAGES = VIEWER_PAGES.slice();
+let sourceLayoutIsPair = false;
+
+function setSourceLayout(source) {
+    const wantPair = source === "dataset";
+    if (wantPair === sourceLayoutIsPair) return;
+    sourceLayoutIsPair = wantPair;
+
+    const pageA = document.getElementById("pageOriginal");
+    const pageB = document.getElementById("pageKspaceFull");
+    const frameA = document.querySelector('.viewcell__frame[data-canvas-id="canvasOriginal"]');
+    const frameB = document.querySelector('.viewcell__frame[data-canvas-id="canvasKspaceFull"]');
+    const tabB = document.querySelector('.viewer-nav__step[data-page="pageKspaceFull"]');
+    if (!pageA || !pageB || !frameA || !frameB) return;
+
+    const makeCell = (letter, label, frame) => {
+        const cell = document.createElement("div");
+        cell.className = "viewer-pair-cell js-source-pair-cell";
+        cell.innerHTML = '<div class="viewer-pair-cell__label-row"><span class="viewer-pair-cell__label"><b>' +
+                         letter + "</b>" + label + "</span></div>";
+        cell.appendChild(frame);
+        return cell;
+    };
+
+    if (wantPair) {
+        pageA.appendChild(makeCell("A", "Source image", frameA));
+        pageA.appendChild(makeCell("B", "k-space (full)", frameB));
+        pageA.classList.add("viewer-page--pair");
+        pageA.dataset.title = "A · B · Source & k-space";
+        CANVAS_TO_PAGE.canvasKspaceFull = "pageOriginal";
+        if (tabB) tabB.style.display = "none";
+        VIEWER_PAGES = ALL_VIEWER_PAGES.filter((id) => id !== "pageKspaceFull");
+    } else {
+        pageA.appendChild(frameA);
+        pageB.appendChild(frameB);
+        pageA.querySelectorAll(".js-source-pair-cell").forEach((c) => c.remove());
+        pageA.classList.remove("viewer-page--pair");
+        pageA.dataset.title = "A · Source image";
+        CANVAS_TO_PAGE.canvasKspaceFull = "pageKspaceFull";
+        if (tabB) tabB.style.display = "";
+        VIEWER_PAGES = ALL_VIEWER_PAGES.slice();
+    }
+
+    // re-show the current page so title / pair styling refresh
+    const activeBtn = document.querySelector(".viewer-nav__step.is-active");
+    let pageId = activeBtn ? activeBtn.dataset.page : "pageOriginal";
+    if (!VIEWER_PAGES.includes(pageId)) pageId = "pageOriginal";
+    showPage(pageId);
 }
 
 viewerStepButtons.forEach((btn) => {
@@ -2033,7 +2094,7 @@ viewerNextBtn.addEventListener("click", () => {
 <script src="../static/js/controls.js?v=frequency1"></script>
 <script src="../static/js/paint.js?v=noise2"></script>
 <script src="../static/js/autoMask.js?v=frequency1"></script>
-<script src="../static/js/main.js?v=frequency1"></script>
+<script src="../static/js/main.js?v=h5pair1"></script>
 <script src="../static/js/frequency.js?v=1"></script>
 <script src="../static/js/sliceVideo.js?v=frequency1"></script>
 <script>

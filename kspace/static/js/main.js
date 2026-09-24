@@ -127,6 +127,7 @@ function setForwardFFTVisibility(source) {
     if (typeof btnTransform !== "undefined" && btnTransform) {
         btnTransform.style.display = source === "dataset" ? "none" : "";
     }
+    if (typeof setSourceLayout === "function") setSourceLayout(source);
 }
 
 sourceToggleButtons.forEach((btn) => {
