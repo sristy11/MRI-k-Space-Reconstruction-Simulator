@@ -155,6 +155,15 @@
 }
 #studioNoiseAudio #pageSound{ display: block !important; }
 
+/* Noise & audio workspace: the simulation/review cards stay on Studio.
+   This page is intentionally a full-width audio-analysis workspace. */
+.noise-audio-grid--audio-only{
+  grid-template-columns: minmax(0, 1fr);
+}
+.noise-audio-grid--audio-only .audio-workbench{
+  width: 100%;
+}
+
 /* Target error page */
 .target-error-grid{
   display: grid;
@@ -820,4 +829,30 @@
   .noise-audio-sidebar,
   .target-error-sidebar{ top: 132px; }
   #studioPipeline .rail{ max-height: calc(100vh - 148px); }
+}
+
+
+/* ============================================================
+   v9 Studio cleanup — visible log + target controls isolated
+   ============================================================ */
+/* Keep the activity log in the immediately visible part of Studio's
+   results rail.  The log scrolls internally once it has many entries. */
+#studioPipeline .rail--readout > .panel--log{
+  order: 2;
+}
+#studioPipeline .rail--readout > #noiseReadout{
+  order: 3;
+}
+#studioPipeline .rail--readout .log{
+  max-height: 180px;
+}
+
+/* The target-error controls are physically moved to workspace 03 by
+   workspaceLayout.js; this guard prevents any startup flash in Studio. */
+main.console__body #autoMaskPanel,
+#studioPipeline #autoMaskPanel{
+  display: none !important;
+}
+#studioTargetError #autoMaskPanel{
+  display: block !important;
 }

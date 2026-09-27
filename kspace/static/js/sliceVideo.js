@@ -1,52 +1,138 @@
 // ============================================================
-// SLICE VIDEO
+// RECONSTRUCTED SLICE VIDEO — media-style playback controls
 // ============================================================
-// Reconstructs every slice of the currently loaded dataset with
-// whatever sampling pattern / acceleration / mask is set in panel
-// 02, then cross-fades through the reconstructions, first to last
-// — a flythrough of the reconstructed volume, not the raw scans.
-//
-// Reuses _createImageData / _easeInOut / canvasAnimations from
-// canvasRender.js and maskPayload() / postJSON() / reconColormap
-// from controls.js rather than duplicating that logic. All plain
-// <script> tags share one scope, so that's safe here.
+// Reconstructs every slice in the active dataset using a fixed snapshot of
+// the current mask/noise settings, then plays the reconstructed volume as a
+// scrub-able timeline. Play, pause, stop/reset and seeking operate on the
+// generated reconstruction stack rather than on a decorative UI layer.
 // ============================================================
 
 const sliceVideoReel = document.getElementById("sliceVideoReel");
 const btnPlaySliceVideo = document.getElementById("btnPlaySliceVideo");
+const btnPauseSliceVideo = document.getElementById("btnPauseSliceVideo");
+const btnStopSliceVideo = document.getElementById("btnStopSliceVideo");
 const sliceVideoTrack = document.getElementById("sliceVideoTrack");
 const sliceVideoFill = document.getElementById("sliceVideoFill");
 const sliceVideoCounter = document.getElementById("sliceVideoCounter");
 const sliceVideoStatus = document.getElementById("sliceVideoStatus");
+const sliceVideoSeek = document.getElementById("sliceVideoSeek");
+const sliceVideoTime = document.getElementById("sliceVideoTime");
 
-const SLICE_VIDEO_IDLE_STATUS = "click play to reconstruct every slice";
-const SLICE_VIDEO_FRAME_MS = 450; // time to cross-fade from one slice's reconstruction into the next
+const SLICE_VIDEO_IDLE_STATUS = "press play to reconstruct every slice";
+const SLICE_VIDEO_FRAME_MS = 450;
+const SLICE_VIDEO_FRAME_SECONDS = SLICE_VIDEO_FRAME_MS / 1000;
 
+let sliceVideoSessionActive = false;
+let sliceVideoPreparing = false;
 let sliceVideoPlaying = false;
-let sliceVideoBusy = false;
+let sliceVideoPaused = false;
+let sliceVideoCache = null;
+let sliceVideoPosition = 0; // fractional slice position, e.g. 3.5 = halfway 3 -> 4
+let sliceVideoRaf = null;
+let sliceVideoLastTick = 0;
+let sliceVideoShownIndex = -1;
 let videoLockedControls = [];
+let sliceVideoPairCache = null;
+let sliceVideoScrubbing = false;
+let sliceVideoResumeAfterScrub = false;
 
 function setSliceVideoStatus(text) {
-    sliceVideoStatus.textContent = text;
+    if (sliceVideoStatus) sliceVideoStatus.textContent = text;
 }
 
-// Indeterminate fill while slices are being reconstructed one by one — we
-// don't know how long each request will take.
+function formatVideoTime(seconds) {
+    const safe = Math.max(0, Number.isFinite(seconds) ? seconds : 0);
+    const minutes = Math.floor(safe / 60);
+    const secs = safe - minutes * 60;
+    return `${minutes}:${secs.toFixed(1).padStart(4, "0")}`;
+}
+
+function videoDurationSeconds() {
+    if (!sliceVideoCache || sliceVideoCache.recons.length < 2) return 0;
+    return (sliceVideoCache.recons.length - 1) * SLICE_VIDEO_FRAME_SECONDS;
+}
+
+function updateVideoTimeline() {
+    const duration = videoDurationSeconds();
+    const current = Math.min(duration, Math.max(0, sliceVideoPosition * SLICE_VIDEO_FRAME_SECONDS));
+
+    if (sliceVideoSeek) {
+        sliceVideoSeek.max = String(duration || 0);
+        if (!sliceVideoScrubbing) sliceVideoSeek.value = String(current);
+        const seekPct = duration > 0 ? Math.min(100, Math.max(0, (current / duration) * 100)) : 0;
+        sliceVideoSeek.style.setProperty("--seek-progress", `${seekPct}%`);
+    }
+    if (sliceVideoTime) {
+        sliceVideoTime.textContent = `${formatVideoTime(current)} / ${formatVideoTime(duration)}`;
+    }
+
+    if (sliceVideoCache) {
+        const lastIndex = sliceVideoCache.recons.length - 1;
+        const visibleIndex = Math.min(lastIndex, Math.max(0, Math.round(sliceVideoPosition)));
+        sliceVideoCounter.textContent = `${visibleIndex} / ${lastIndex}`;
+        setReelProgress(lastIndex ? sliceVideoPosition / lastIndex : 0);
+    } else {
+        sliceVideoCounter.textContent = "—";
+        setReelProgress(0);
+    }
+}
+
 function setReelBusy(isBusy) {
+    if (!sliceVideoTrack || !sliceVideoFill) return;
     sliceVideoTrack.classList.toggle("is-busy", isBusy);
-    if (isBusy) sliceVideoFill.style.width = "";
+    if (isBusy) {
+        sliceVideoFill.style.width = "";
+    } else {
+        sliceVideoFill.style.transform = "";
+    }
 }
 
-// Determinate fill once playback starts, since total frame count is known.
-function setReelProgress(current, total) {
+function setReelProgress(fraction) {
+    if (!sliceVideoTrack || !sliceVideoFill || sliceVideoPreparing) return;
     sliceVideoTrack.classList.remove("is-busy");
-    sliceVideoFill.style.width = `${total > 0 ? Math.round((current / total) * 100) : 0}%`;
+    const pct = Math.round(Math.min(1, Math.max(0, fraction || 0)) * 100);
+    sliceVideoFill.style.width = `${pct}%`;
 }
 
-// Reconstructs every slice with the given (fixed-for-this-run) mask settings.
-// Sequential, not Promise.all: each request re-runs masking + inverse FFT on
-// the backend, and this keeps the "reconstructing slice i/N" status honest
-// instead of firing dozens of heavy requests at once.
+function updateVideoControlState() {
+    if (!sliceVideoReel) return;
+
+    sliceVideoReel.classList.toggle("is-preparing", sliceVideoPreparing);
+    sliceVideoReel.classList.toggle("is-playing", sliceVideoPlaying);
+    sliceVideoReel.classList.toggle("is-paused", sliceVideoPaused && !sliceVideoPlaying);
+
+    if (btnPlaySliceVideo) btnPlaySliceVideo.disabled = sliceVideoPreparing || sliceVideoPlaying;
+    if (btnPauseSliceVideo) btnPauseSliceVideo.disabled = !sliceVideoPlaying;
+    if (btnStopSliceVideo) btnStopSliceVideo.disabled = !sliceVideoSessionActive;
+    if (sliceVideoSeek) sliceVideoSeek.disabled = !sliceVideoCache || sliceVideoPreparing;
+}
+
+function lockVideoExternalControls() {
+    if (videoLockedControls.length) return;
+    const allowed = new Set([
+        "btnPlaySliceVideo",
+        "btnPauseSliceVideo",
+        "btnStopSliceVideo",
+        "sliceVideoSeek",
+        "comparisonSlider",
+    ]);
+
+    videoLockedControls = [...document.querySelectorAll("button, input, select")]
+        .filter((el) => !allowed.has(el.id))
+        .map((el) => [el, el.disabled]);
+
+    videoLockedControls.forEach(([el]) => {
+        el.disabled = true;
+    });
+}
+
+function unlockVideoExternalControls() {
+    videoLockedControls.forEach(([el, disabled]) => {
+        el.disabled = disabled;
+    });
+    videoLockedControls = [];
+}
+
 async function reconstructSliceStack(dataset, numSlices, maskParams, onProgress) {
     const recons = [];
     const metrics = [];
@@ -55,10 +141,9 @@ async function reconstructSliceStack(dataset, numSlices, maskParams, onProgress)
     const references = [];
 
     for (let i = 0; i < numSlices; i++) {
-        if (!sliceVideoPlaying) break;
+        if (!sliceVideoSessionActive) break;
 
         onProgress(i, numSlices);
-
         const data = await postJSON("/pipeline/reconstruct", {
             source: "dataset",
             dataset,
@@ -66,7 +151,7 @@ async function reconstructSliceStack(dataset, numSlices, maskParams, onProgress)
             ...maskParams,
         });
 
-        if (!sliceVideoPlaying) break;
+        if (!sliceVideoSessionActive) break;
         recons.push(data.recon);
         errors.push(data.error);
         references.push(data.reference);
@@ -86,52 +171,257 @@ function buildOffscreen(width, height, array2d, colorFn) {
     return offscreen;
 }
 
-// Cross-fades `canvas` from array `from` to array `to` over `duration` ms.
-// Checks sliceVideoPlaying every frame so stopSliceVideo() can end it early
-// without leaving this promise unresolved.
-function crossfadeSlices(canvas, from, to, duration, colorFn) {
-    return new Promise((resolve) => {
-        const height = from.length;
-        const width = from[0].length;
-
-        const fromOffscreen = buildOffscreen(width, height, from, colorFn);
-        const toOffscreen = buildOffscreen(width, height, to, colorFn);
-
-        const ctx = canvas.getContext("2d");
-        ctx.imageSmoothingEnabled = false;
-
-        const start = performance.now();
-
-        function frame(now) {
-            if (!sliceVideoPlaying) {
-                canvasAnimations.delete(canvas);
-                resolve();
-                return;
-            }
-
-            const progress = Math.min(1, (now - start) / duration);
-            const eased = _easeInOut(progress);
-
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.drawImage(fromOffscreen, 0, 0, width, height, 0, 0, canvas.width, canvas.height);
-            ctx.globalAlpha = eased;
-            ctx.drawImage(toOffscreen, 0, 0, width, height, 0, 0, canvas.width, canvas.height);
-            ctx.globalAlpha = 1;
-
-            if (progress < 1) {
-                canvasAnimations.set(canvas, requestAnimationFrame(frame));
-            } else {
-                canvasAnimations.delete(canvas);
-                resolve();
-            }
-        }
-
-        canvasAnimations.set(canvas, requestAnimationFrame(frame));
-    });
+function ensureCanvasSize(canvas, array2d) {
+    if (!canvas || !array2d || !array2d.length || !array2d[0]) return;
+    const height = array2d.length;
+    const width = array2d[0].length;
+    if (canvas.width !== width) canvas.width = width;
+    if (canvas.height !== height) canvas.height = height;
 }
 
-async function playSliceVideo() {
-    if (sliceVideoBusy) return;
+function clearSliceVideoPairCache() {
+    sliceVideoPairCache = null;
+}
+
+function pairCanvasesFor(baseIndex) {
+    const cache = sliceVideoCache;
+    const lastIndex = cache.recons.length - 1;
+    const nextIndex = Math.min(lastIndex, baseIndex + 1);
+    const key = `${baseIndex}:${nextIndex}:${reconColormap}`;
+    if (sliceVideoPairCache && sliceVideoPairCache.key === key) return sliceVideoPairCache;
+
+    const reconColor = reconColormap === "jet" ? _jet : _grayscale;
+    const height = cache.recons[baseIndex].length;
+    const width = cache.recons[baseIndex][0].length;
+
+    sliceVideoPairCache = {
+        key,
+        reconFrom: buildOffscreen(width, height, cache.recons[baseIndex], reconColor),
+        reconTo: buildOffscreen(width, height, cache.recons[nextIndex], reconColor),
+        errorFrom: buildOffscreen(width, height, cache.errors[baseIndex], _hot),
+        errorTo: buildOffscreen(width, height, cache.errors[nextIndex], _hot),
+        refFrom: buildOffscreen(width, height, cache.references[baseIndex], _grayscale),
+        refTo: buildOffscreen(width, height, cache.references[nextIndex], _grayscale),
+    };
+    return sliceVideoPairCache;
+}
+
+function drawCanvasBlend(canvas, fromCanvas, toCanvas, fraction) {
+    const ctx = canvas.getContext("2d");
+    ctx.imageSmoothingEnabled = false;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.globalAlpha = 1;
+    ctx.drawImage(fromCanvas, 0, 0, fromCanvas.width, fromCanvas.height, 0, 0, canvas.width, canvas.height);
+
+    if (fraction > 0.0001) {
+        ctx.globalAlpha = Math.min(1, Math.max(0, fraction));
+        ctx.drawImage(toCanvas, 0, 0, toCanvas.width, toCanvas.height, 0, 0, canvas.width, canvas.height);
+        ctx.globalAlpha = 1;
+    }
+}
+
+function applySliceVideoMetadata(index, force = false) {
+    if (!sliceVideoCache) return;
+    const cache = sliceVideoCache;
+    const lastIndex = cache.recons.length - 1;
+    const safeIndex = Math.min(lastIndex, Math.max(0, index));
+    if (!force && safeIndex === sliceVideoShownIndex) return;
+
+    sliceVideoShownIndex = safeIndex;
+    const dataset = cache.dataset;
+    const maskParams = cache.maskParams;
+
+    window.LAST_RECON = cache.recons[safeIndex];
+    if (window.updateMRIComparison) {
+        window.updateMRIComparison({
+            reference: cache.references[safeIndex],
+            recon: cache.recons[safeIndex],
+        });
+    }
+
+    sliceSlider.value = safeIndex;
+    sliceValue.textContent = safeIndex;
+    window.APP_STATE = { source: "dataset", filename: null, dataset, sliceIndex: safeIndex };
+
+    metricMSE.textContent = fmt(cache.metrics[safeIndex].mse, 6);
+    metricPSNR.textContent = cache.metrics[safeIndex].psnr === null
+        ? "∞ dB"
+        : `${fmt(cache.metrics[safeIndex].psnr, 2)} dB`;
+    metricNRMSE.textContent = fmt(cache.metrics[safeIndex].nrmse, 4);
+    renderNoiseReview(cache.metrics[safeIndex], cache.cleanMetrics[safeIndex], maskParams.noise_level);
+}
+
+function drawSliceVideoPosition(position, forceMetadata = false) {
+    if (!sliceVideoCache) return;
+
+    const cache = sliceVideoCache;
+    const lastIndex = cache.recons.length - 1;
+    const clamped = Math.min(lastIndex, Math.max(0, position));
+    sliceVideoPosition = clamped;
+
+    const baseIndex = Math.min(lastIndex, Math.floor(clamped));
+    const nextIndex = Math.min(lastIndex, baseIndex + 1);
+    const rawFraction = nextIndex === baseIndex ? 0 : clamped - baseIndex;
+    const fraction = _easeInOut(rawFraction);
+
+    _cancelCanvasAnimation(canvasRecon);
+    _cancelCanvasAnimation(canvasError);
+    _cancelCanvasAnimation(canvasOriginal);
+
+    ensureCanvasSize(canvasRecon, cache.recons[baseIndex]);
+    ensureCanvasSize(canvasError, cache.errors[baseIndex]);
+    ensureCanvasSize(canvasOriginal, cache.references[baseIndex]);
+
+    const pair = pairCanvasesFor(baseIndex);
+    drawCanvasBlend(canvasRecon, pair.reconFrom, pair.reconTo, fraction);
+    drawCanvasBlend(canvasError, pair.errorFrom, pair.errorTo, fraction);
+    drawCanvasBlend(canvasOriginal, pair.refFrom, pair.refTo, fraction);
+
+    emptyRecon.style.display = "none";
+    emptyError.style.display = "none";
+    if (typeof emptyOriginalEl !== "undefined" && emptyOriginalEl) emptyOriginalEl.style.display = "none";
+    showStep("canvasRecon");
+
+    applySliceVideoMetadata(Math.round(clamped), forceMetadata);
+    updateVideoTimeline();
+}
+
+function cancelSliceVideoAnimationFrame() {
+    if (sliceVideoRaf !== null) {
+        cancelAnimationFrame(sliceVideoRaf);
+        sliceVideoRaf = null;
+    }
+    sliceVideoLastTick = 0;
+}
+
+function finishNaturalPlayback() {
+    sliceVideoPlaying = false;
+    sliceVideoPaused = false;
+    cancelSliceVideoAnimationFrame();
+    drawSliceVideoPosition(sliceVideoCache.recons.length - 1, true);
+    setSliceVideoStatus("finished — scrub the timeline or press play to replay");
+    updateVideoControlState();
+
+    const cache = sliceVideoCache;
+    if (cache && !cache.loggedPlayback) {
+        cache.loggedPlayback = true;
+        addLog(`played reconstructed slice video: ${cache.dataset} (0 → ${cache.recons.length - 1}, ${cache.maskParams.pattern} @ ×${cache.maskParams.acceleration})`);
+    }
+}
+
+function sliceVideoTick(now) {
+    if (!sliceVideoSessionActive || !sliceVideoPlaying || !sliceVideoCache) return;
+
+    if (!sliceVideoLastTick) sliceVideoLastTick = now;
+    const delta = Math.max(0, Math.min(100, now - sliceVideoLastTick));
+    sliceVideoLastTick = now;
+
+    if (!sliceVideoScrubbing) {
+        sliceVideoPosition += delta / SLICE_VIDEO_FRAME_MS;
+    }
+
+    const lastIndex = sliceVideoCache.recons.length - 1;
+    if (sliceVideoPosition >= lastIndex) {
+        finishNaturalPlayback();
+        return;
+    }
+
+    drawSliceVideoPosition(sliceVideoPosition);
+    sliceVideoRaf = requestAnimationFrame(sliceVideoTick);
+}
+
+function resumeSliceVideo() {
+    if (!sliceVideoSessionActive || sliceVideoPreparing || !sliceVideoCache) return;
+
+    const lastIndex = sliceVideoCache.recons.length - 1;
+    if (sliceVideoPosition >= lastIndex - 0.0001) {
+        sliceVideoPosition = 0;
+        clearSliceVideoPairCache();
+        drawSliceVideoPosition(0, true);
+    }
+
+    sliceVideoPlaying = true;
+    sliceVideoPaused = false;
+    sliceVideoLastTick = 0;
+    setSliceVideoStatus("playing reconstructed slices");
+    updateVideoControlState();
+    cancelSliceVideoAnimationFrame();
+    sliceVideoRaf = requestAnimationFrame(sliceVideoTick);
+}
+
+function pauseSliceVideo(silent = false) {
+    if (!sliceVideoPlaying) return;
+    sliceVideoPlaying = false;
+    sliceVideoPaused = true;
+    cancelSliceVideoAnimationFrame();
+    if (!silent) {
+        const current = sliceVideoPosition * SLICE_VIDEO_FRAME_SECONDS;
+        setSliceVideoStatus(`paused at ${formatVideoTime(current)}`);
+    }
+    updateVideoControlState();
+}
+
+function releaseSliceVideoSession({ resetToStart = true, preserveStatus = false } = {}) {
+    cancelSliceVideoAnimationFrame();
+    sliceVideoSessionActive = false;
+    sliceVideoPreparing = false;
+    sliceVideoPlaying = false;
+    sliceVideoPaused = false;
+    sliceVideoScrubbing = false;
+    sliceVideoResumeAfterScrub = false;
+
+    if (resetToStart && sliceVideoCache) {
+        clearSliceVideoPairCache();
+        drawSliceVideoPosition(0, true);
+    }
+
+    unlockVideoExternalControls();
+    setReelBusy(false);
+    if (sliceVideoTrack) sliceVideoTrack.classList.remove("is-busy");
+
+    const reconFrame = canvasRecon.closest(".viewcell__frame");
+    if (reconFrame) reconFrame.classList.remove("is-scanning");
+
+    if (!preserveStatus) setSliceVideoStatus(SLICE_VIDEO_IDLE_STATUS);
+
+    sliceVideoCache = null;
+    sliceVideoPosition = 0;
+    sliceVideoShownIndex = -1;
+    clearSliceVideoPairCache();
+
+    if (sliceVideoSeek) {
+        sliceVideoSeek.value = "0";
+        sliceVideoSeek.max = "0";
+        sliceVideoSeek.disabled = true;
+        sliceVideoSeek.style.setProperty("--seek-progress", "0%");
+    }
+    if (sliceVideoTime) sliceVideoTime.textContent = "0:00.0 / 0:00.0";
+    if (sliceVideoCounter) sliceVideoCounter.textContent = "—";
+    if (sliceVideoFill) sliceVideoFill.style.width = "0%";
+    updateVideoControlState();
+}
+
+function stopSliceVideo() {
+    if (!sliceVideoSessionActive && !sliceVideoPreparing) {
+        releaseSliceVideoSession({ resetToStart: false });
+        return;
+    }
+
+    // Reconstruction requests cannot be aborted through postJSON, so mark the
+    // session inactive; reconstructSliceStack exits after the in-flight request.
+    if (sliceVideoPreparing) {
+        sliceVideoSessionActive = false;
+        sliceVideoPlaying = false;
+        setSliceVideoStatus("stopping reconstruction…");
+        updateVideoControlState();
+        return;
+    }
+
+    releaseSliceVideoSession({ resetToStart: true });
+}
+
+async function prepareSliceVideo() {
+    if (sliceVideoPreparing || sliceVideoSessionActive) return;
 
     if (window.APP_STATE.source !== "dataset" || !window.APP_STATE.dataset) {
         statusTextEl.textContent = "load a dataset slice first";
@@ -147,143 +437,134 @@ async function playSliceVideo() {
 
     const dataset = window.APP_STATE.dataset;
     const numSlices = parseInt(sliceSlider.max, 10) + 1;
-
     if (!numSlices || numSlices < 2) {
         statusTextEl.textContent = "dataset has only one slice";
         addLog("error: not enough slices to play a video");
         return;
     }
 
-    // Snapshot the mask settings once so a mid-run tweak in panel 02 can't
-    // change parameters partway through this batch of reconstructions.
     const maskParams = maskPayload();
+    sliceVideoSessionActive = true;
+    sliceVideoPreparing = true;
+    sliceVideoPlaying = false;
+    sliceVideoPaused = false;
+    sliceVideoPosition = 0;
+    sliceVideoShownIndex = -1;
+    sliceVideoCache = null;
+    clearSliceVideoPairCache();
 
-    sliceVideoPlaying = true;
-    sliceVideoBusy = true;
-    // Prevent competing requests / canvas animations while video owns the view.
-    videoLockedControls = [...document.querySelectorAll('button, input, select')]
-        .filter(el => el !== btnPlaySliceVideo && el.id !== 'comparisonSlider')
-        .map(el => [el, el.disabled]);
-    videoLockedControls.forEach(([el]) => { el.disabled = true; });
+    lockVideoExternalControls();
     if (window.clearFrequencyExperiment) window.clearFrequencyExperiment();
-    sliceVideoReel.classList.add("is-playing");
-    btnPlaySliceVideo.setAttribute("aria-label", "stop reconstructed slice video");
-    btnLoadDataset.disabled = true;
-    datasetSelect.disabled = true;
-    sliceSlider.disabled = true;
 
     const reconFrame = canvasRecon.closest(".viewcell__frame");
     if (reconFrame) reconFrame.classList.add("is-scanning");
 
-    try {
-        setReelBusy(true);
-        sliceVideoCounter.textContent = `0 / ${numSlices - 1}`;
-        setSliceVideoStatus(`reconstructing slice 0 of ${numSlices - 1}\u2026`);
+    setReelBusy(true);
+    setSliceVideoStatus(`reconstructing slice 0 of ${numSlices - 1}…`);
+    sliceVideoCounter.textContent = `0 / ${numSlices - 1}`;
+    updateVideoControlState();
 
-        const { recons, metrics, cleanMetrics, errors, references } = await reconstructSliceStack(dataset, numSlices, maskParams, (i, total) => {
-            setSliceVideoStatus(`reconstructing slice ${i} of ${total - 1}\u2026`);
+    try {
+        const stack = await reconstructSliceStack(dataset, numSlices, maskParams, (i, total) => {
+            setSliceVideoStatus(`reconstructing slice ${i} of ${total - 1}…`);
             sliceVideoCounter.textContent = `${i} / ${total - 1}`;
         });
 
-        if (!sliceVideoPlaying || recons.length < 2) {
+        if (!sliceVideoSessionActive) {
+            releaseSliceVideoSession({ resetToStart: false });
             return;
         }
+
+        if (stack.recons.length < 2) {
+            throw new Error("not enough reconstructed slices to play");
+        }
+
+        sliceVideoCache = {
+            dataset,
+            maskParams,
+            ...stack,
+            loggedPlayback: false,
+        };
+        sliceVideoPreparing = false;
+        setReelBusy(false);
+        if (sliceVideoTrack) sliceVideoTrack.classList.remove("is-busy");
 
         _cancelCanvasAnimation(canvasRecon);
         _cancelCanvasAnimation(canvasError);
         _cancelCanvasAnimation(canvasOriginal);
-        emptyError.style.display = "none";
-        renderGrayscale(canvasRecon, recons[0]);
-        renderHot(canvasError, errors[0]);
-        renderGrayscale(canvasOriginal, references[0]);
-        showStep("canvasRecon");
-        emptyRecon.style.display = "none";
-
-        const colorFn = reconColormap === "jet" ? _jet : _grayscale;
-        const lastIndex = recons.length - 1;
-
-        window.LAST_RECON = recons[0];
-        window.updateMRIComparison({reference: references[0], recon: recons[0]});
-        sliceSlider.value = 0;
-        sliceValue.textContent = 0;
-        window.APP_STATE = { source: "dataset", filename: null, dataset, sliceIndex: 0 };
-        metricMSE.textContent = fmt(metrics[0].mse, 6);
-        metricPSNR.textContent = metrics[0].psnr === null ? "∞ dB" : `${fmt(metrics[0].psnr, 2)} dB`;
-        metricNRMSE.textContent = fmt(metrics[0].nrmse, 4);
-        renderNoiseReview(metrics[0], cleanMetrics[0], maskParams.noise_level);
-        setReelProgress(0, lastIndex);
-
-        for (let i = 0; i < lastIndex && sliceVideoPlaying; i++) {
-            setSliceVideoStatus(`slice ${i} \u2192 ${i + 1} of ${lastIndex}`);
-            sliceVideoCounter.textContent = `${i + 1} / ${lastIndex}`;
-
-            await Promise.all([
-                crossfadeSlices(canvasRecon, recons[i], recons[i + 1], SLICE_VIDEO_FRAME_MS, colorFn),
-                crossfadeSlices(canvasError, errors[i], errors[i + 1], SLICE_VIDEO_FRAME_MS, _hot),
-                crossfadeSlices(canvasOriginal, references[i], references[i + 1], SLICE_VIDEO_FRAME_MS, _grayscale),
-            ]);
-            // Snap to a complete frame on stop so image, heatmap and metrics agree.
-            renderGrayscale(canvasOriginal, references[i + 1]);
-            renderHot(canvasError, errors[i + 1]);
-            window.updateMRIComparison({reference: references[i + 1], recon: recons[i + 1]});
-
-            // Keep slider, label, metrics, progress bar, and the pipeline's
-            // notion of "current slice" all pointing at whatever is actually
-            // on screen, including if the user stops the video partway
-            // through.
-            sliceSlider.value = i + 1;
-            sliceValue.textContent = i + 1;
-            window.APP_STATE = { source: "dataset", filename: null, dataset, sliceIndex: i + 1 };
-            setReelProgress(i + 1, lastIndex);
-
-            window.LAST_RECON = recons[i + 1];
-            renderRecon();
-            metricMSE.textContent = fmt(metrics[i + 1].mse, 6);
-            metricPSNR.textContent = metrics[i + 1].psnr === null ? "∞ dB" : `${fmt(metrics[i + 1].psnr, 2)} dB`;
-            metricNRMSE.textContent = fmt(metrics[i + 1].nrmse, 4);
-            renderNoiseReview(metrics[i + 1], cleanMetrics[i + 1], maskParams.noise_level);
-        }
-
-        if (sliceVideoPlaying) {
-            addLog(`played reconstructed slice video: ${dataset} (0 \u2192 ${lastIndex}, ${maskParams.pattern} @ \u00d7${maskParams.acceleration})`);
-        }
+        sliceVideoPosition = 0;
+        drawSliceVideoPosition(0, true);
+        updateVideoControlState();
+        resumeSliceVideo();
     } catch (error) {
         console.error("Slice video failed:", error);
         statusTextEl.textContent = "slice video failed";
         addLog(`error: ${error.message}`);
-    } finally {
-        sliceVideoBusy = false;
-        videoLockedControls.forEach(([el, disabled]) => { el.disabled = disabled; });
-        videoLockedControls = [];
-        stopSliceVideo();
+        releaseSliceVideoSession({ resetToStart: false, preserveStatus: true });
+        setSliceVideoStatus("reconstruction video failed");
     }
 }
 
-function stopSliceVideo() {
-    sliceVideoPlaying = false;
-    if (sliceVideoBusy) {
-        setSliceVideoStatus("stopping…");
-        return;
-    }
-    sliceVideoReel.classList.remove("is-playing");
-    btnPlaySliceVideo.setAttribute("aria-label", "play reconstructed slice video");
-    btnLoadDataset.disabled = false;
-    datasetSelect.disabled = false;
-    sliceSlider.disabled = false;
-
-    sliceVideoTrack.classList.remove("is-busy");
-    sliceVideoFill.style.width = "0%";
-    sliceVideoCounter.textContent = "";
-    setSliceVideoStatus(SLICE_VIDEO_IDLE_STATUS);
-
-    const reconFrame = canvasRecon.closest(".viewcell__frame");
-    if (reconFrame) reconFrame.classList.remove("is-scanning");
-}
-
-btnPlaySliceVideo.addEventListener("click", () => {
-    if (sliceVideoPlaying) {
-        stopSliceVideo();
+function playSliceVideo() {
+    if (sliceVideoPreparing || sliceVideoPlaying) return;
+    if (sliceVideoSessionActive && sliceVideoCache) {
+        resumeSliceVideo();
     } else {
-        playSliceVideo();
+        prepareSliceVideo();
     }
+}
+
+function seekSliceVideoToSeconds(seconds) {
+    if (!sliceVideoCache) return;
+    const duration = videoDurationSeconds();
+    const safeSeconds = Math.min(duration, Math.max(0, Number(seconds) || 0));
+    clearSliceVideoPairCache();
+    drawSliceVideoPosition(safeSeconds / SLICE_VIDEO_FRAME_SECONDS, true);
+    sliceVideoLastTick = 0;
+}
+
+btnPlaySliceVideo.addEventListener("click", playSliceVideo);
+btnPauseSliceVideo.addEventListener("click", () => pauseSliceVideo(false));
+btnStopSliceVideo.addEventListener("click", stopSliceVideo);
+
+sliceVideoSeek.addEventListener("pointerdown", () => {
+    if (!sliceVideoCache) return;
+    sliceVideoScrubbing = true;
+    sliceVideoResumeAfterScrub = sliceVideoPlaying;
+    if (sliceVideoPlaying) pauseSliceVideo(true);
 });
+
+sliceVideoSeek.addEventListener("input", () => {
+    if (!sliceVideoCache) return;
+    if (!sliceVideoScrubbing) {
+        sliceVideoScrubbing = true;
+        sliceVideoResumeAfterScrub = sliceVideoPlaying;
+        if (sliceVideoPlaying) pauseSliceVideo(true);
+    }
+    seekSliceVideoToSeconds(parseFloat(sliceVideoSeek.value));
+    setSliceVideoStatus(`seeking — ${sliceVideoTime.textContent.split(" / ")[0]}`);
+});
+
+function finishSliceVideoScrub() {
+    if (!sliceVideoScrubbing) return;
+    const shouldResume = sliceVideoResumeAfterScrub;
+    sliceVideoScrubbing = false;
+    sliceVideoResumeAfterScrub = false;
+    updateVideoTimeline();
+
+    if (shouldResume) {
+        resumeSliceVideo();
+    } else if (sliceVideoCache) {
+        sliceVideoPaused = true;
+        const current = sliceVideoPosition * SLICE_VIDEO_FRAME_SECONDS;
+        setSliceVideoStatus(`paused at ${formatVideoTime(current)}`);
+        updateVideoControlState();
+    }
+}
+
+sliceVideoSeek.addEventListener("change", finishSliceVideoScrub);
+sliceVideoSeek.addEventListener("pointerup", finishSliceVideoScrub);
+sliceVideoSeek.addEventListener("pointercancel", finishSliceVideoScrub);
+
+updateVideoTimeline();
+updateVideoControlState();

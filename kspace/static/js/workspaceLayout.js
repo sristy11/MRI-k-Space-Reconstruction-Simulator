@@ -141,14 +141,12 @@
     const homes = {
       noisePanel: rememberHome(noisePanel, "noise-panel"),
       noiseReadout: rememberHome(noiseReadout, "noise-readout"),
-      autoMaskPanel: rememberHome(autoMaskPanel, "auto-mask"),
       soundPage: rememberHome(soundPage, "sound-page")
     };
 
     const restoreSharedNodes = () => {
       restoreHome(noisePanel, homes.noisePanel);
       restoreHome(noiseReadout, homes.noiseReadout);
-      restoreHome(autoMaskPanel, homes.autoMaskPanel);
       restoreHome(soundPage, homes.soundPage);
     };
 
@@ -159,19 +157,16 @@
     noisePage.dataset.studioPage = "noise";
     noisePage.hidden = true;
     noisePage.appendChild(makeHeading(
-      "Noise simulation & audio analysis",
-      "Noise controls, quantitative noise review and the complete sound-comparison workspace on one page."
+      "Audio analysis",
+      "Compare and inspect the sonified source, k-space, sampling and reconstruction data in one full-width workspace."
     ));
     const noiseGrid = document.createElement("div");
-    noiseGrid.className = "noise-audio-grid";
-    const noiseSidebar = document.createElement("div");
-    noiseSidebar.id = "noiseWorkspaceSidebar";
-    noiseSidebar.className = "noise-audio-sidebar";
+    noiseGrid.className = "noise-audio-grid noise-audio-grid--audio-only";
     const audioWorkbench = document.createElement("div");
     audioWorkbench.id = "audioWorkspaceBody";
     audioWorkbench.className = "audio-workbench";
     audioWorkbench.innerHTML = '<h3 class="audio-workbench__title">Audio analysis</h3>';
-    noiseGrid.append(noiseSidebar, audioWorkbench);
+    noiseGrid.append(audioWorkbench);
     noisePage.appendChild(noiseGrid);
 
     // ---------------- Target error page ----------------
@@ -190,6 +185,9 @@
     const targetSidebar = document.createElement("div");
     targetSidebar.id = "targetWorkspaceSidebar";
     targetSidebar.className = "target-error-sidebar";
+    // Target-error controls belong exclusively to workspace 03.
+    // Move the live panel out of Studio once and keep it here permanently.
+    if (autoMaskPanel) targetSidebar.appendChild(autoMaskPanel);
     const targetResults = document.createElement("div");
     targetResults.className = "target-error-results";
     const targetPreviewGrid = document.createElement("div");
@@ -235,11 +233,26 @@
     // shared controls are restored to their original locations.
     if (frequencyLab) frequencyWorkspaceBody.appendChild(frequencyLab);
 
+    // ---------------- Report comparison page ----------------
+    const reportsPage = document.createElement("section");
+    reportsPage.id = "studioReports";
+    reportsPage.className = "studio-page studio-page-shell";
+    reportsPage.dataset.studioPage = "reports";
+    reportsPage.hidden = true;
+    reportsPage.appendChild(makeHeading(
+      "Report comparison",
+      "Upload two K-SPACE PDF reports, compare their reconstruction metrics and settings, then export one combined comparison PDF."
+    ));
+    const reportsWorkspaceBody = document.createElement("div");
+    reportsWorkspaceBody.id = "reportsWorkspaceBody";
+    reportsPage.appendChild(reportsWorkspaceBody);
+
     pipeline.insertAdjacentElement("afterend", noisePage);
     noisePage.insertAdjacentElement("afterend", targetPage);
     targetPage.insertAdjacentElement("afterend", frequencyPage);
+    frequencyPage.insertAdjacentElement("afterend", reportsPage);
 
-    // ---------------- LEFT page navigation ----------------
+    // ---------------- Workspace navigation ----------------
     const nav = document.createElement("nav");
     nav.id = "studioWorkspaceNav";
     nav.className = "studio-workspace-nav";
@@ -253,7 +266,8 @@
       ["pipeline", "01", "Studio"],
       ["noise", "02", "Noise & audio"],
       ["target", "03", "Target error"],
-      ["frequency", "04", "MRI frequency"]
+      ["frequency", "04", "MRI frequency"],
+      ["reports", "05", "Report compare"]
     ];
     tabSpecs.forEach(([page, index, label]) => {
       const button = document.createElement("button");
@@ -268,7 +282,7 @@
     consoleRoot.insertBefore(nav, pipeline);
     consoleRoot.classList.add("has-workspace-nav");
 
-    const pages = [pipeline, noisePage, targetPage, frequencyPage];
+    const pages = [pipeline, noisePage, targetPage, frequencyPage, reportsPage];
     const tabs = Array.from(nav.querySelectorAll(".studio-workspace-tab"));
 
     function activateWorkspace(name) {
@@ -276,11 +290,10 @@
 
       // Move the actual live feature blocks only while their dedicated page is open.
       if (name === "noise") {
-        if (noisePanel) noiseSidebar.appendChild(noisePanel);
-        if (noiseReadout) noiseSidebar.appendChild(noiseReadout);
+        // Keep the Noise simulation and Noise review blocks in Studio.
+        // The dedicated Noise & audio workspace is now reserved for the
+        // full-width audio-analysis/sonification interface only.
         if (soundPage) audioWorkbench.appendChild(soundPage);
-      } else if (name === "target") {
-        if (autoMaskPanel) targetSidebar.appendChild(autoMaskPanel);
       }
 
       pages.forEach((page) => {
