@@ -13,6 +13,40 @@
         c.getContext('2d').putImageData(_createImageData(c.width, c.height, array, _grayscale), 0, 0);
         return c;
     };
+
+    // Frequency masks live in normalized k-space coordinates: fx and fy each
+    // span the same [-0.5, 0.5) range even when the source image is
+    // rectangular. Rendering the raw mask with the source image's aspect
+    // ratio therefore makes a circular radial cutoff look like an ellipse.
+    // Draw mask previews into a square backing canvas so one unit on fx has
+    // the same on-screen scale as one unit on fy. This is display-only; the
+    // actual mask used by the reconstruction remains unchanged.
+    function renderFrequencyMask(canvas, array) {
+        if (!canvas || !array || !array.length || !array[0]?.length) return;
+
+        const srcH = array.length;
+        const srcW = array[0].length;
+        const src = document.createElement('canvas');
+        src.width = srcW;
+        src.height = srcH;
+        src.getContext('2d').putImageData(
+            _createImageData(srcW, srcH, array, _grayscale),
+            0,
+            0
+        );
+
+        // Keep a square backing store as well as a square CSS box. A larger
+        // backing store keeps the preview sharp on high-DPI displays.
+        const size = 256;
+        if (canvas.width !== size || canvas.height !== size) {
+            canvas.width = size;
+            canvas.height = size;
+        }
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, size, size);
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(src, 0, 0, srcW, srcH, 0, 0, size, size);
+    }
     function draw() {
         const pair = mode.value === 'pipeline' ? pipelinePair : experiment && {
             original: experiment.original, recon: experiment[mode.value]
@@ -57,8 +91,8 @@
             experiment = { original: bitmap(data.reference), low: bitmap(data.low.recon), high: bitmap(data.high.recon) };
             renderGrayscale(el('frequencyLow'), data.low.recon);
             renderGrayscale(el('frequencyHigh'), data.high.recon);
-            renderGrayscale(el('frequencyLowMask'), data.low.mask);
-            renderGrayscale(el('frequencyHighMask'), data.high.mask);
+            renderFrequencyMask(el('frequencyLowMask'), data.low.mask);
+            renderFrequencyMask(el('frequencyHighMask'), data.high.mask);
             if (mode.value === 'pipeline') mode.value = 'low';
             el('frequencyStatus').textContent = `Low frequencies retained: ${(data.low.density * 100).toFixed(1)}% · High frequencies retained: ${(data.high.density * 100).toFixed(1)}%.`;
             draw();

@@ -33,21 +33,33 @@ function displayImage(file) {
 
     image.onload = function () {
 
+        // Dataset previews can resize this same canvas to a non-square shape
+        // (for example 368x640). If an uploaded photo is drawn afterwards
+        // without restoring the backing store, drawImage(..., 256, 256) only
+        // fills the top-left corner and the old dataset aspect ratio remains.
+        // Reset BOTH the canvas and its frame before drawing the upload.
+        const uploadSize = 256;
+        canvasOriginal.width = uploadSize;
+        canvasOriginal.height = uploadSize;
+
+        const frame = canvasOriginal.closest(".viewcell__frame");
+        if (frame) {
+            frame.style.setProperty("--ar", "1");
+        }
+
         const ctx = canvasOriginal.getContext("2d");
+        ctx.clearRect(0, 0, uploadSize, uploadSize);
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = "high";
 
-        ctx.clearRect(
-            0,
-            0,
-            canvasOriginal.width,
-            canvasOriginal.height
-        );
-
+        // The upload pipeline also converts the photo to 256x256, so the
+        // preview now has exactly the same dimensions as the data used for FFT.
         ctx.drawImage(
             image,
             0,
             0,
-            256,
-            256
+            uploadSize,
+            uploadSize
         );
 
         emptyOriginal.style.display = "none";

@@ -1,0 +1,823 @@
+/* ============================================================
+   K-SPACE workspace grouping
+   Left page navigation + original Studio page preserved intact.
+   ============================================================ */
+
+.studio-workspace-nav{
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  z-index: 45;
+  width: 188px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 6px 12px 18px;
+  overflow-y: auto;
+  background: var(--header-bg);
+  backdrop-filter: blur(12px);
+  border-right: 1px solid var(--line);
+}
+
+/* Let the workspace navigation occupy the full left edge from the very top.
+   The header content is offset so the nav no longer has to begin below it. */
+.console__header{
+  padding-left: 212px;
+}
+
+.studio-workspace-nav__title{
+  padding: 0 9px 7px;
+  color: var(--text-3);
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: .12em;
+}
+
+.studio-workspace-tab{
+  width: 100%;
+  min-height: 44px;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  align-items: center;
+  gap: 9px;
+  padding: 6px 9px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text-2);
+  text-align: left;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .14s, color .14s, border-color .14s;
+}
+
+.studio-workspace-tab:hover{
+  color: var(--text);
+  background: var(--panel-2);
+  border-color: var(--line);
+}
+
+.studio-workspace-tab.is-active{
+  color: var(--accent-text);
+  background: var(--accent-wash);
+  border-color: var(--accent-line);
+}
+
+.studio-workspace-tab__index{
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  background: var(--panel-3);
+  color: var(--text-2);
+  font-family: var(--font-mono);
+  font-size: 10px;
+}
+
+.studio-workspace-tab.is-active .studio-workspace-tab__index{
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.studio-workspace-tab__label{
+  min-width: 0;
+  line-height: 1.2;
+}
+
+.studio-page[hidden]{ display: none !important; }
+
+/* Keep the original Studio exactly as a normal 3-column page; only reserve
+   room for the new far-left workspace menu. */
+#studioPipeline.console__body{
+  width: calc(100% - 188px);
+  max-width: none;
+  margin: 0 0 0 188px;
+}
+
+.studio-page-shell{
+  width: calc(100% - 188px);
+  max-width: 1880px;
+  margin: 0 0 0 188px;
+  padding: 20px 24px 10px;
+}
+
+.studio-page-head{
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 14px;
+}
+.studio-page-head h2{
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+.studio-page-head p{
+  max-width: 760px;
+  margin: 4px 0 0;
+  color: var(--text-3);
+  font-size: 12.5px;
+}
+
+/* Dedicated Noise + Audio page. The blocks here are the same live nodes from
+   the original page, temporarily moved here while this page is active. */
+.noise-audio-grid{
+  display: grid;
+  grid-template-columns: 330px minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+.noise-audio-sidebar{
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  position: sticky;
+  top: 80px;
+}
+.audio-workbench{
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+.audio-workbench__title{
+  margin: 0 0 12px;
+  font-size: 14px;
+  font-weight: 700;
+}
+#studioNoiseAudio #pageSound{ display: block !important; }
+
+/* Target error page */
+.target-error-grid{
+  display: grid;
+  grid-template-columns: 360px minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+.target-error-sidebar{
+  position: sticky;
+  top: 80px;
+}
+.target-error-results{
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.target-preview-grid{
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+.target-preview-card{
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+.target-preview-label{
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 28px;
+  margin-bottom: 8px;
+  color: var(--text-2);
+  font-size: 12px;
+  font-weight: 600;
+}
+.target-preview-label b{
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  background: var(--panel-3);
+  border: 1px solid var(--line-strong);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 10px;
+}
+.target-preview-frame{
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: #000;
+}
+.target-preview-frame canvas{
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+.target-preview-empty{
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  color: #A7B3C4;
+  font-size: 11px;
+  text-align: center;
+  pointer-events: none;
+}
+.target-metric-panel .metrics{
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+.target-metric-panel .metrics__row{ min-width: 0; }
+
+/* Frequency page */
+#studioFrequency .frequency-lab{
+  width: 100%;
+  margin: 0;
+  padding: 18px;
+  border-color: var(--line);
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+#studioFrequency .frequency-lab h2{ margin-top: 0; color: var(--text); }
+#studioFrequency .frequency-lab p,
+#studioFrequency .frequency-grid figcaption,
+#studioFrequency .comparison-labels,
+#studioFrequency .frequency-controls label{ color: var(--text-2); }
+#studioFrequency .frequency-controls select,
+#studioFrequency .frequency-controls button{
+  color: var(--text);
+  background: var(--panel-2);
+  border-color: var(--line-strong);
+}
+#studioFrequency .frequency-grid figure canvas:last-child{ border-color: var(--line-strong); }
+#frequencyLab{ scroll-margin-top: 80px; }
+
+@media (max-width: 1180px){
+  .studio-workspace-nav{ width: 72px; padding: 6px 9px 16px; }
+  .console__header{ padding-left: 96px; }
+  .studio-workspace-nav__title,
+  .studio-workspace-tab__label{ display: none; }
+  .studio-workspace-tab{
+    grid-template-columns: 1fr;
+    place-items: center;
+    padding: 7px;
+  }
+  #studioPipeline.console__body{
+    width: calc(100% - 72px);
+    margin-left: 72px;
+  }
+  .studio-page-shell{
+    width: calc(100% - 72px);
+    margin-left: 72px;
+  }
+}
+
+@media (max-width: 900px){
+  .noise-audio-grid,
+  .target-error-grid{ grid-template-columns: 1fr; }
+  .noise-audio-sidebar,
+  .target-error-sidebar{ position: static; }
+  .target-preview-grid{ grid-template-columns: 1fr; }
+  .target-metric-panel .metrics{ grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 680px){
+  .console__header{ padding-left: 86px; padding-right: 12px; }
+  .studio-page-shell{ padding: 14px 12px 10px; }
+}
+
+/* ============================================================
+   v3 visual refresh — cobalt imaging workstation
+   Keeps every control/feature intact; only presentation changes.
+   ============================================================ */
+
+/* MRI frequency comparison belongs exclusively to workspace 04.  Keeping
+   this guard in CSS also prevents a flash of the lab before JS relocates it. */
+#frequencyLab{ display: none; }
+#studioFrequency #frequencyLab{ display: block; }
+
+/* Sharper, calmer application chrome. */
+.console__header{
+  border-bottom-color: var(--line-strong);
+  box-shadow: 0 8px 28px rgba(6, 13, 31, .10);
+}
+
+.brand__mark{
+  background: linear-gradient(145deg, #8EA2FF, #4F6EF7) !important;
+  color: #fff !important;
+  box-shadow: 0 0 0 1px rgba(255,255,255,.18) inset, 0 7px 20px rgba(79,110,247,.30) !important;
+}
+
+.studio-workspace-nav{
+  padding: 6px 12px 20px;
+  background:
+    radial-gradient(160px 180px at 20% 0%, var(--accent-wash), transparent 72%),
+    var(--panel);
+  border-right: 1px solid var(--line-strong);
+  box-shadow: 10px 0 30px rgba(6,13,31,.08);
+}
+
+.studio-workspace-nav__title{
+  color: var(--text-3);
+  letter-spacing: .16em;
+}
+
+.studio-workspace-tab{
+  position: relative;
+  min-height: 48px;
+  border-radius: 12px;
+  color: var(--text-2);
+}
+
+.studio-workspace-tab::before{
+  content: "";
+  position: absolute;
+  left: -12px;
+  top: 10px;
+  bottom: 10px;
+  width: 3px;
+  border-radius: 0 4px 4px 0;
+  background: transparent;
+}
+
+.studio-workspace-tab:hover{
+  transform: translateX(2px);
+  background: var(--panel-2);
+}
+
+.studio-workspace-tab.is-active{
+  color: var(--accent-text);
+  background: linear-gradient(135deg, var(--accent-wash), var(--panel-2));
+  border-color: var(--accent-line);
+  box-shadow: 0 8px 22px rgba(36,57,126,.09);
+}
+
+.studio-workspace-tab.is-active::before{ background: var(--accent); }
+
+.studio-workspace-tab__index{
+  border: 1px solid var(--line);
+  background: var(--panel-3);
+}
+
+.studio-workspace-tab.is-active .studio-workspace-tab__index{
+  border-color: transparent;
+  background: linear-gradient(145deg, #7892FF, var(--accent));
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(79,110,247,.22);
+}
+
+/* Panels feel more like workstation cards while retaining the original grid. */
+.panel,
+.audio-workbench,
+.target-preview-card,
+#studioFrequency .frequency-lab{
+  border-color: var(--line);
+  box-shadow: var(--shadow), 0 12px 30px rgba(10,24,56,.035);
+}
+
+.panel__eyebrow,
+.studio-page-head h2,
+.audio-workbench__title{
+  letter-spacing: .015em;
+}
+
+.panel__num{
+  border: 1px solid var(--accent-line);
+  background: var(--accent-wash);
+  color: var(--accent-text);
+}
+
+/* Form controls and buttons use the new cobalt accent consistently. */
+.segmented__option.is-active,
+.viewer-nav__step.is-active{
+  color: var(--accent-text);
+  border-color: var(--accent-line);
+  background: var(--accent-wash);
+}
+
+.btn--primary,
+.btn--accent{
+  border-color: var(--accent-line);
+}
+
+.btn--accent{
+  background: linear-gradient(180deg, var(--grad-a1), var(--grad-a2));
+  color: #fff;
+  box-shadow: 0 7px 18px var(--accent-btn-shadow);
+}
+
+.btn--accent:hover:not(:disabled){
+  background: linear-gradient(180deg, var(--grad-a1h), var(--grad-a2h));
+}
+
+.header__status,
+.theme-toggle{
+  box-shadow: 0 5px 16px rgba(10,24,56,.05);
+}
+
+/* Stage framing: keep images neutral/black while making the surrounding UI
+   distinctly cobalt-blue rather than the previous teal treatment. */
+.viewport-single{
+  border-color: var(--line);
+  box-shadow: 0 18px 42px rgba(10,24,56,.06);
+}
+
+.viewer-nav__steps{
+  border-color: var(--line);
+  background: var(--panel-2);
+}
+
+.studio-page-head{
+  padding: 2px 2px 10px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.studio-page-head h2{ color: var(--text); }
+.studio-page-head p{ color: var(--text-3); }
+
+/* Light mode gets an airy blue-tinted canvas instead of flat gray. */
+:root[data-theme="light"] body{
+  background:
+    radial-gradient(1000px 480px at 10% -8%, rgba(64,93,230,.10), transparent 62%),
+    radial-gradient(840px 440px at 100% 0%, rgba(12,142,207,.08), transparent 58%),
+    var(--bg);
+}
+
+:root[data-theme="light"] .studio-workspace-nav{
+  background:
+    radial-gradient(180px 210px at 15% 0%, rgba(64,93,230,.10), transparent 70%),
+    rgba(255,255,255,.94);
+}
+
+:root[data-theme="light"] .panel,
+:root[data-theme="light"] .audio-workbench,
+:root[data-theme="light"] .target-preview-card,
+:root[data-theme="light"] #studioFrequency .frequency-lab{
+  box-shadow: 0 1px 2px rgba(23,36,58,.04), 0 12px 32px rgba(48,72,130,.07);
+}
+
+
+/* ============================================================
+   v6 workspace navigation — horizontal top bar
+   Converts the former left workspace sidebar into a full-width
+   navigation row directly below the application header.
+   ============================================================ */
+.studio-workspace-nav{
+  position: sticky;
+  top: 60px;
+  left: auto;
+  right: auto;
+  bottom: auto;
+  z-index: 39;
+  width: 100%;
+  min-height: 64px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 24px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  background:
+    linear-gradient(180deg, var(--header-bg), var(--panel));
+  border-right: 0;
+  border-bottom: 1px solid var(--line-strong);
+  box-shadow: 0 10px 28px rgba(6,13,31,.08);
+  backdrop-filter: blur(12px);
+}
+
+/* The main header returns to its normal full-width layout. */
+.console__header{
+  padding-left: 24px;
+}
+
+.studio-workspace-nav__title{
+  flex: 0 0 auto;
+  padding: 0 12px 0 0;
+  margin-right: 2px;
+  border-right: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+.studio-workspace-tab{
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 150px;
+  min-height: 44px;
+  display: grid;
+  grid-template-columns: 28px auto;
+  align-items: center;
+  gap: 9px;
+  padding: 6px 12px;
+  border-radius: 11px;
+  white-space: nowrap;
+  text-align: left;
+}
+
+.studio-workspace-tab::before{
+  left: 12px;
+  right: 12px;
+  top: auto;
+  bottom: -8px;
+  width: auto;
+  height: 3px;
+  border-radius: 4px 4px 0 0;
+}
+
+.studio-workspace-tab:hover{
+  transform: translateY(-1px);
+}
+
+/* No left gutter is needed now that navigation lives above the pages. */
+#studioPipeline.console__body{
+  width: 100%;
+  max-width: 1880px;
+  margin: 0 auto;
+}
+
+.studio-page-shell{
+  width: 100%;
+  max-width: 1880px;
+  margin: 0 auto;
+}
+
+/* Sticky controls must clear both the 60px header and the workspace top bar. */
+#studioPipeline .rail,
+.noise-audio-sidebar,
+.target-error-sidebar{
+  top: 140px;
+}
+
+#studioPipeline .rail{
+  max-height: calc(100vh - 160px);
+}
+
+#frequencyLab{ scroll-margin-top: 144px; }
+
+:root[data-theme="light"] .studio-workspace-nav{
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.96), rgba(247,249,254,.96));
+}
+
+@media (max-width: 1180px){
+  .studio-workspace-nav{
+    width: 100%;
+    min-height: 62px;
+    padding: 8px 16px;
+  }
+  .console__header{ padding-left: 24px; }
+  .studio-workspace-nav__title{ display: block; }
+  .studio-workspace-tab__label{ display: inline; }
+  .studio-workspace-tab{
+    width: auto;
+    min-width: 138px;
+    grid-template-columns: 28px auto;
+    place-items: initial;
+    align-items: center;
+    padding: 6px 10px;
+  }
+  #studioPipeline.console__body{
+    width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .studio-page-shell{
+    width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+  }
+}
+
+@media (max-width: 680px){
+  .console__header{ padding-left: 12px; padding-right: 12px; }
+  .studio-workspace-nav{
+    top: 60px;
+    min-height: 58px;
+    gap: 7px;
+    padding: 7px 10px;
+  }
+  .studio-workspace-nav__title{ display: none; }
+  .studio-workspace-tab{
+    min-width: max-content;
+    min-height: 42px;
+    grid-template-columns: 24px auto;
+    gap: 7px;
+    padding: 5px 9px;
+    font-size: 11px;
+  }
+  .studio-workspace-tab__index{
+    width: 24px;
+    height: 24px;
+  }
+  #studioPipeline .rail,
+  .noise-audio-sidebar,
+  .target-error-sidebar{
+    top: 132px;
+  }
+  #studioPipeline .rail{ max-height: calc(100vh - 148px); }
+  .studio-page-shell{ padding: 14px 12px 10px; }
+}
+
+/* ============================================================
+   v7 top chrome refinement — right-aligned workspace tabs
+   ============================================================ */
+.console__header{
+  height: 68px;
+  padding: 0 28px;
+  background:
+    radial-gradient(520px 120px at 8% -10%, var(--accent-wash), transparent 72%),
+    linear-gradient(180deg, color-mix(in srgb, var(--header-bg) 94%, var(--panel-2) 6%), var(--header-bg));
+  border-bottom: 1px solid var(--line-strong);
+  box-shadow: 0 8px 26px rgba(6,13,31,.08);
+  backdrop-filter: blur(18px) saturate(135%);
+}
+
+.brand{ gap: 13px; }
+.brand__mark{
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,.18) inset,
+    0 8px 24px rgba(79,110,247,.28) !important;
+}
+.brand__mark svg{ width: 21px; height: 21px; }
+.brand__title{
+  font-size: 15.5px;
+  letter-spacing: .075em;
+}
+.brand__subtitle{
+  margin-top: 2px;
+  font-size: 11px;
+  letter-spacing: .01em;
+}
+
+.header__right{ gap: 9px; }
+.theme-toggle{
+  width: 34px;
+  height: 34px;
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--panel) 92%, transparent);
+}
+.header__status{
+  height: 34px;
+  padding: 0 15px 0 12px;
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--panel) 92%, transparent);
+  box-shadow: 0 5px 16px rgba(10,24,56,.045);
+}
+
+.studio-workspace-nav{
+  top: 68px;
+  min-height: 68px;
+  gap: 8px;
+  padding: 10px 28px;
+  background:
+    linear-gradient(90deg, var(--accent-wash), transparent 24%),
+    linear-gradient(180deg, color-mix(in srgb, var(--header-bg) 88%, var(--panel) 12%), var(--panel));
+  border-bottom: 1px solid var(--line);
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.025) inset,
+    0 12px 30px rgba(6,13,31,.065);
+  backdrop-filter: blur(18px) saturate(125%);
+}
+
+/* Keep the section identity on the left; push the actual page menus right. */
+.studio-workspace-nav__title{
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-right: auto;
+  padding: 0 18px 0 0;
+  border-right: 0;
+  color: var(--text-2);
+  font-size: 9.5px;
+  letter-spacing: .18em;
+}
+.studio-workspace-nav__title::before{
+  content: "";
+  width: 6px;
+  height: 6px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 4px var(--accent-wash);
+}
+
+.studio-workspace-tab{
+  min-width: 138px;
+  min-height: 46px;
+  gap: 8px;
+  padding: 6px 11px;
+  border-color: transparent;
+  border-radius: 12px;
+  background: transparent;
+  box-shadow: none;
+}
+.studio-workspace-tab:hover{
+  transform: translateY(-1px);
+  background: var(--panel-2);
+  border-color: var(--line);
+  box-shadow: 0 6px 16px rgba(6,13,31,.05);
+}
+.studio-workspace-tab.is-active{
+  color: var(--accent-text);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--accent-wash) 88%, var(--panel) 12%), var(--panel-2));
+  border-color: var(--accent-line);
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,.025) inset,
+    0 8px 20px rgba(36,57,126,.09);
+}
+.studio-workspace-tab::before{
+  left: 14px;
+  right: 14px;
+  bottom: -11px;
+  height: 3px;
+  border-radius: 3px 3px 0 0;
+}
+.studio-workspace-tab__index{
+  width: 27px;
+  height: 27px;
+  border-radius: 8px;
+  font-size: 9.5px;
+}
+.studio-workspace-tab__label{
+  font-size: 11.5px;
+  letter-spacing: .005em;
+}
+
+/* Sticky page-side controls clear the slightly taller top chrome. */
+#studioPipeline .rail,
+.noise-audio-sidebar,
+.target-error-sidebar{
+  top: 154px;
+}
+#studioPipeline .rail{ max-height: calc(100vh - 174px); }
+#frequencyLab{ scroll-margin-top: 158px; }
+
+:root[data-theme="light"] .console__header{
+  background:
+    radial-gradient(520px 120px at 8% -10%, rgba(64,93,230,.09), transparent 72%),
+    linear-gradient(180deg, rgba(255,255,255,.98), rgba(250,252,255,.96));
+}
+:root[data-theme="light"] .studio-workspace-nav{
+  background:
+    linear-gradient(90deg, rgba(64,93,230,.055), transparent 24%),
+    linear-gradient(180deg, rgba(252,253,255,.97), rgba(246,249,254,.96));
+}
+
+@media (max-width: 1180px){
+  .console__header{ height: 64px; padding-left: 20px; padding-right: 20px; }
+  .studio-workspace-nav{
+    top: 64px;
+    min-height: 64px;
+    padding: 8px 18px;
+  }
+  .studio-workspace-nav__title{ padding-right: 10px; }
+  .studio-workspace-tab{ min-width: 124px; padding-left: 9px; padding-right: 9px; }
+  #studioPipeline .rail,
+  .noise-audio-sidebar,
+  .target-error-sidebar{ top: 144px; }
+  #studioPipeline .rail{ max-height: calc(100vh - 164px); }
+}
+
+@media (max-width: 860px){
+  .studio-workspace-nav__title{ display: none; }
+  .studio-workspace-nav{ justify-content: flex-end; }
+  .studio-workspace-tab{ min-width: max-content; }
+}
+
+@media (max-width: 680px){
+  .console__header{ height: 60px; padding-left: 12px; padding-right: 12px; }
+  .brand__mark{ width: 34px; height: 34px; border-radius: 10px; }
+  .brand__subtitle{ display: none; }
+  .header__status{ max-width: 42vw; }
+  .studio-workspace-nav{
+    top: 60px;
+    min-height: 58px;
+    justify-content: flex-start;
+    gap: 7px;
+    padding: 7px 10px;
+  }
+  .studio-workspace-tab{
+    min-height: 42px;
+    min-width: max-content;
+    padding: 5px 9px;
+  }
+  .studio-workspace-tab::before{ bottom: -8px; }
+  #studioPipeline .rail,
+  .noise-audio-sidebar,
+  .target-error-sidebar{ top: 132px; }
+  #studioPipeline .rail{ max-height: calc(100vh - 148px); }
+}

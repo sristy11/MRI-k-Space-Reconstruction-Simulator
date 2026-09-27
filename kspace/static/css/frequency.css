@@ -10,7 +10,14 @@
 .frequency-grid figcaption,.comparison-labels { font-size: 12px; margin-bottom: 10px; min-height: 30px; }
 .comparison-labels { display: flex; justify-content: space-between; gap: 16px; }
 .frequency-grid canvas { display: block; width: 100%; background: #000; image-rendering: pixelated; }
-.frequency-grid figure canvas:last-child { width: 100px; }
+.frequency-grid figure canvas:last-child {
+  width: 112px;
+  height: 112px;
+  aspect-ratio: 1 / 1;
+  object-fit: fill;
+  border: 1px solid #536071;
+  box-sizing: border-box;
+}
 .comparison-stage { position: relative; touch-action: none; cursor: ew-resize; overflow: hidden; }
 .comparison-divider { position: absolute; top: 0; bottom: 0; left: 50%; width: 2px; background: #fff; pointer-events: none; }
 .comparison-divider span { position: absolute; top: 50%; transform: translate(-50%,-50%); border-radius: 50%; padding: 9px; color: #111; background: white; }

@@ -83,6 +83,11 @@ btnAutoMask.addEventListener("click", async () => {
             noise_seed: pipelineParams.noise_seed,
         });
 
+        // Keep the completed target-error result separate from the animated
+        // Studio canvases. The dedicated target page renders these arrays
+        // directly, so its mask/reconstruction/error previews update immediately.
+        window.LAST_TARGET_ERROR_RESULT = data;
+
         // Make "custom" (the found mask) the active pattern, and load it
         // into the paint grid so it's visible and still hand-editable.
         activateCustomPatternUI();
@@ -117,6 +122,10 @@ btnAutoMask.addEventListener("click", async () => {
         autoMaskDensityEl.textContent = `${(data.density * 100).toFixed(1)}% · ${data.points_kept.toLocaleString()} pts`;
         autoMaskIterationsEl.textContent = data.iterations;
         autoMaskUnreachableEl.style.display = data.achievable ? "none" : "";
+
+        // Force the dedicated Target Error page to consume the finished arrays
+        // now; do not wait for a workspace navigation event to refresh it.
+        if (window.syncTargetErrorPreview) window.syncTargetErrorPreview();
 
         statusTextEl.textContent = data.achievable
             ? "auto mask found — target error reached"
