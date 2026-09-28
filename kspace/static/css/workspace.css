@@ -856,3 +856,34 @@ main.console__body #autoMaskPanel,
 #studioTargetError #autoMaskPanel{
   display: block !important;
 }
+
+/* ============================================================
+   v11 Studio activity log — prevent flex collapse
+   ============================================================ */
+/* The desktop results rail has a viewport-height cap.  Flex items shrink by
+   default, which allowed Readout + Noise review to squeeze the Log panel down
+   to only its heading.  Keep each result card at its intrinsic height and let
+   the rail itself scroll instead. */
+#studioPipeline .rail--readout > .panel{
+  flex-shrink: 0;
+}
+#studioPipeline .rail--readout > .panel--log{
+  min-height: 168px;
+}
+#studioPipeline .rail--readout .panel--log .log{
+  min-height: 92px;
+  max-height: 180px;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+
+/* On layouts where the results cards sit side-by-side, retain a useful log
+   body without forcing excessive vertical space. */
+@media (max-width: 1440px){
+  #studioPipeline .rail--readout > .panel--log{
+    min-height: 150px;
+  }
+  #studioPipeline .rail--readout .panel--log .log{
+    min-height: 74px;
+  }
+}

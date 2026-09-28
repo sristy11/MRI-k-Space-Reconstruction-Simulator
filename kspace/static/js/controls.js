@@ -143,10 +143,12 @@ function warnIfServerIgnoredNoise(data) {
 
 // Same level, different random noise: bump the seed so the next
 // undersample / reconstruct run draws a fresh noise realization.
-btnNoiseReroll.addEventListener("click", () => {
-    pipelineParams.noise_seed = Math.floor(Math.random() * 1_000_000);
-    addLog(`noise: new random sample (seed ${pipelineParams.noise_seed})`);
-});
+if (btnNoiseReroll) {
+    btnNoiseReroll.addEventListener("click", () => {
+        pipelineParams.noise_seed = Math.floor(Math.random() * 1_000_000);
+        addLog(`noise: new random sample (seed ${pipelineParams.noise_seed})`);
+    });
+}
 
 // Fills the "noise review" readout. Shared with sliceVideo.js so the slice
 // video keeps it in step with the metrics it already updates per slice.
@@ -400,9 +402,13 @@ btnReset.addEventListener("click", () => {
         b.setAttribute("aria-checked", b.dataset.source === "upload" ? "true" : "false");
     });
     const uploadBlock = document.getElementById("uploadSourceBlock");
+    const h5UploadBlock = document.getElementById("h5UploadSourceBlock");
     const datasetBlock = document.getElementById("datasetSourceBlock");
     if (uploadBlock) uploadBlock.style.display = "";
+    if (h5UploadBlock) h5UploadBlock.style.display = "none";
     if (datasetBlock) datasetBlock.style.display = "none";
+    const h5InputEl = document.getElementById("h5FileInput");
+    if (h5InputEl) h5InputEl.value = "";
     if (typeof setForwardFFTVisibility === "function") setForwardFFTVisibility("upload");
 
     const datasetSelectEl = document.getElementById("datasetSelect");

@@ -223,7 +223,19 @@ function closeModal() {
 }
 
 document.querySelectorAll(".viewcell__frame--clickable").forEach((frame) => {
-    frame.addEventListener("click", () => openModal(frame));
+    frame.addEventListener("click", () => {
+        // While the reconstructed slice video is available, the reconstruction
+        // canvas should open the live synchronized video player rather than a
+        // frozen lightbox snapshot. Other canvases keep their normal lightbox.
+        if (frame.dataset.canvasId === "canvasRecon"
+            && typeof isSliceVideoReady === "function"
+            && isSliceVideoReady()
+            && typeof openSliceVideoModal === "function") {
+            openSliceVideoModal();
+            return;
+        }
+        openModal(frame);
+    });
 });
 
 modalBackdrop.addEventListener("click", closeModal);

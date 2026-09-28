@@ -438,6 +438,11 @@
         .sl-btn svg{width:14px;height:14px;fill:currentColor;flex:none}
         .sl-btn--play{border-color:transparent;background:linear-gradient(180deg,#34E0CB,#14B8A6);color:#04231F;box-shadow:0 6px 18px rgba(20,184,166,.28)}
         .sl-btn--play:hover{background:linear-gradient(180deg,#5EEAD4,#19C9B3);border-color:transparent}
+        .sl-btn--sound2{border-color:rgba(245,165,36,.58);background:rgba(245,165,36,.12);color:${COL.two}}
+        .sl-btn--sound2:hover{border-color:${COL.two};background:rgba(245,165,36,.17)}
+        .sl-btn--pause{min-width:108px}
+        .sl-btn--pause.is-paused{border-color:rgba(56,189,248,.55);background:rgba(56,189,248,.11);color:${COL.one}}
+        .sl-btn:disabled{opacity:.42;cursor:not-allowed;transform:none;box-shadow:none}
         .sl-btn--cmp{border-color:rgba(245,165,36,.5);background:rgba(245,165,36,.1);color:${COL.two}}
         .sl-btn--cmp:hover{background:rgba(245,165,36,.18);border-color:${COL.two}}
         .sl-btn--small{height:32px;padding:0 13px;font-size:12px;font-weight:500;border-radius:8px}
@@ -472,6 +477,7 @@
     }
 
     const ICON_PLAY = '<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>';
+    const ICON_PAUSE = '<svg viewBox="0 0 24 24"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>';
     const ICON_STOP = '<svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1.5"/></svg>';
     const ICON_CMP  = '<svg viewBox="0 0 24 24"><path d="M3 12h4l3-8 4 16 3-8h4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
@@ -512,6 +518,8 @@
             <div class="sl-transport">
               <div class="sl-buttons">
                 <button type="button" class="sl-btn sl-btn--play" id="sonPlay1">${ICON_PLAY}<span>Play sound 1</span></button>
+                <button type="button" class="sl-btn sl-btn--sound2" id="sonPlay2">${ICON_PLAY}<span>Play sound 2</span></button>
+                <button type="button" class="sl-btn sl-btn--pause" id="sonPause" disabled>${ICON_PAUSE}<span>Pause</span></button>
                 <button type="button" class="sl-btn sl-btn--cmp" id="sonCompare">${ICON_CMP}<span>Compare 1 vs 2</span></button>
                 <button type="button" class="sl-btn" id="sonStop">${ICON_STOP}<span>Stop</span></button>
               </div>
@@ -1000,12 +1008,38 @@
         return audio;
     }
 
+    function setPauseUi(paused, enabled) {
+        const btn = $("sonPause");
+        if (!btn) return;
+        btn.disabled = !enabled;
+        btn.classList.toggle("is-paused", !!paused);
+        btn.innerHTML = `${paused ? ICON_PLAY : ICON_PAUSE}<span>${paused ? "Resume" : "Pause"}</span>`;
+    }
+
+    async function togglePause() {
+        if (!playing || !audio) return setStatus("Play a sound first, then pause it.");
+        if (playing.paused) {
+            try { await audio.resume(); } catch (e) { return setStatus("Could not resume audio in this browser."); }
+            if (!playing) return;
+            playing.paused = false;
+            setPauseUi(false, true);
+            setStatus(`Resumed ${playing.label || "audio"}.`);
+        } else {
+            try { await audio.suspend(); } catch (e) { return setStatus("Could not pause audio in this browser."); }
+            if (!playing) return;
+            playing.paused = true;
+            setPauseUi(true, true);
+            setStatus(`Paused ${playing.label || "audio"}. Press Resume to continue from the same position.`);
+        }
+    }
+
     function stopPlayback() {
         if (playing) {
             const p = playing;
             playing = null;
             p.stop();
         }
+        setPauseUi(false, false);
         Object.keys(HEAD_CHART).forEach((id) => movePlayhead(id, null));
         $("sonSwitch").classList.remove("is-visible");
     }
@@ -1025,8 +1059,9 @@
         const key1 = sel1.value;
         const key2 = sel2.value;
         const compare = kind === "compare";
-        if (!key1) return setStatus("Choose a picture for sound 1.");
-        if (compare && !key2) return setStatus("Choose a sound 2 to compare with.");
+        const playSecond = kind === "single2";
+        if (!playSecond && !key1) return setStatus("Choose a picture for sound 1.");
+        if ((compare || playSecond) && !key2) return setStatus("Choose a picture for sound 2.");
 
         const ctx = getAudio();
         if (!ctx) return setStatus("This browser has no Web Audio support.");
@@ -1034,15 +1069,19 @@
         setStatus("Preparing sound…");
         await sleep(20);   // let the status paint before the (short) synthesis work
 
-        const p1 = await prepare(key1, 1);
-        if (!p1 || p1.missing) return setStatus("Sound 1 isn't ready yet: run that step in the console first.");
+        let p1 = S.p1;
         let p2 = S.p2;
-        if (compare) {
+        if (!playSecond) {
+            p1 = await prepare(key1, 1);
+            if (!p1 || p1.missing) return setStatus("Sound 1 isn't ready yet: run that step in the console first.");
+            S.p1 = p1;
+        }
+        if (compare || playSecond) {
             p2 = await prepare(key2, 2);
             if (!p2 || p2.missing) return setStatus("Sound 2 isn't ready yet: run that step in the console first.");
+            S.p2 = p2;
         }
-        S.p1 = p1;
-        if (compare) S.p2 = p2;
+        const primary = playSecond ? p2 : p1;
         S.diff = null;
 
         const dur = parseInt(durSlider.value, 10);
@@ -1071,10 +1110,10 @@
         };
 
         if (!compare) {
-            channelsForWav = [p1.audio];
-            name = `sound1_${p1.label}`;
-            bufferSource([p1.audio]).connect(master);
-            segments = [{ from: 0, to: dur, id: "sonHead1" }];
+            channelsForWav = [primary.audio];
+            name = `${playSecond ? "sound2" : "sound1"}_${primary.label}`;
+            bufferSource([primary.audio]).connect(master);
+            segments = [{ from: 0, to: dur, id: playSecond ? "sonHead2" : "sonHead1" }];
         } else if (mode === "then") {
             const gap = new Float32Array(Math.round(GAP_SECONDS * SAMPLE_RATE));
             const joined = new Float32Array(p1.audio.length + gap.length + p2.audio.length);
@@ -1151,6 +1190,8 @@
         };
 
         const handle = {
+            paused: false,
+            label: compare ? "comparison" : `sound ${playSecond ? "2" : "1"}`,
             stop() {
                 cancelAnimationFrame(raf);
                 sources.forEach((s) => { try { s.onended = null; s.stop(); } catch (e) { /* already stopped */ } });
@@ -1161,11 +1202,13 @@
             setLive,
         };
         playing = handle;
+        setPauseUi(false, true);
 
         // end of (non-looping) playback
         sources[0].onended = () => {
             if (playing !== handle) return;
             playing = null;
+            setPauseUi(false, false);
             cancelAnimationFrame(raf);
             Object.keys(HEAD_CHART).forEach((id) => movePlayhead(id, null));
             $("sonSwitch").classList.remove("is-visible");
@@ -1182,7 +1225,7 @@
             $("sonSwitch").classList.add("is-visible");
             setStatus("Looping. Press 1 or 2 (keys or buttons) to jump between the two sounds at the same moment.");
         } else if (!compare) {
-            setStatus(`Playing sound 1: ${p1.label}`);
+            setStatus(`Playing sound ${playSecond ? "2" : "1"}: ${primary.label}`);
         } else if (mode === "stereo") {
             setStatus(`Playing 1 in the left ear and 2 in the right (use headphones): ${p1.label} | ${p2.label}`);
         } else if (mode === "then") {
@@ -1232,6 +1275,7 @@
         }
         injectStyles();
         buildLab(host);
+        setPauseUi(false, false);
 
         sel1 = $("sonSel1");
         sel2 = $("sonSel2");
@@ -1268,6 +1312,8 @@
         });
 
         $("sonPlay1").addEventListener("click", () => start("single"));
+        $("sonPlay2").addEventListener("click", () => start("single2"));
+        $("sonPause").addEventListener("click", togglePause);
         $("sonCompare").addEventListener("click", () => start("compare"));
         $("sonStop").addEventListener("click", () => { stopPlayback(); if (stale) scheduleRefresh(100); });
         $("sonSnap").addEventListener("click", takeSnapshot);

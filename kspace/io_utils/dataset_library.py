@@ -28,9 +28,10 @@ def list_datasets():
     # all valid datasets.
     datasets = []
 
-    # Find every file ending with .h5 inside DATASET_DIR.
-    # sorted() keeps the files in alphabetical order.
-    for path in sorted(DATASET_DIR.glob("*.h5")):
+    # Find HDF5 MRI scans inside DATASET_DIR. Both common extensions are
+    # supported so files uploaded through Studio remain available after reload.
+    paths = list(DATASET_DIR.glob("*.h5")) + list(DATASET_DIR.glob("*.hdf5"))
+    for path in sorted(paths):
 
         try:
             # Get the number of MRI slices in this H5 file.

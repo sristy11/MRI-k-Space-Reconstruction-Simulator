@@ -17,6 +17,18 @@ const sliceVideoCounter = document.getElementById("sliceVideoCounter");
 const sliceVideoStatus = document.getElementById("sliceVideoStatus");
 const sliceVideoSeek = document.getElementById("sliceVideoSeek");
 const sliceVideoTime = document.getElementById("sliceVideoTime");
+const btnOpenSliceVideoModal = document.getElementById("btnOpenSliceVideoModal");
+const sliceVideoModal = document.getElementById("sliceVideoModal");
+const sliceVideoModalBackdrop = document.getElementById("sliceVideoModalBackdrop");
+const sliceVideoModalClose = document.getElementById("sliceVideoModalClose");
+const sliceVideoModalCanvas = document.getElementById("sliceVideoModalCanvas");
+const sliceVideoModalStatus = document.getElementById("sliceVideoModalStatus");
+const sliceVideoModalCounter = document.getElementById("sliceVideoModalCounter");
+const sliceVideoModalSeek = document.getElementById("sliceVideoModalSeek");
+const sliceVideoModalTime = document.getElementById("sliceVideoModalTime");
+const btnPlaySliceVideoModal = document.getElementById("btnPlaySliceVideoModal");
+const btnPauseSliceVideoModal = document.getElementById("btnPauseSliceVideoModal");
+const btnStopSliceVideoModal = document.getElementById("btnStopSliceVideoModal");
 
 const SLICE_VIDEO_IDLE_STATUS = "press play to reconstruct every slice";
 const SLICE_VIDEO_FRAME_MS = 450;
@@ -35,9 +47,11 @@ let videoLockedControls = [];
 let sliceVideoPairCache = null;
 let sliceVideoScrubbing = false;
 let sliceVideoResumeAfterScrub = false;
+let sliceVideoScrubSource = null;
 
 function setSliceVideoStatus(text) {
     if (sliceVideoStatus) sliceVideoStatus.textContent = text;
+    if (sliceVideoModalStatus) sliceVideoModalStatus.textContent = text;
 }
 
 function formatVideoTime(seconds) {
@@ -52,27 +66,38 @@ function videoDurationSeconds() {
     return (sliceVideoCache.recons.length - 1) * SLICE_VIDEO_FRAME_SECONDS;
 }
 
+function _syncVideoSeek(seekEl, current, duration) {
+    if (!seekEl) return;
+    seekEl.max = String(duration || 0);
+    if (!sliceVideoScrubbing || sliceVideoScrubSource !== seekEl) {
+        seekEl.value = String(current);
+    }
+    const shownValue = Math.min(duration, Math.max(0, Number(seekEl.value) || 0));
+    const seekPct = duration > 0 ? Math.min(100, Math.max(0, (shownValue / duration) * 100)) : 0;
+    seekEl.style.setProperty("--seek-progress", `${seekPct}%`);
+}
+
 function updateVideoTimeline() {
     const duration = videoDurationSeconds();
     const current = Math.min(duration, Math.max(0, sliceVideoPosition * SLICE_VIDEO_FRAME_SECONDS));
 
-    if (sliceVideoSeek) {
-        sliceVideoSeek.max = String(duration || 0);
-        if (!sliceVideoScrubbing) sliceVideoSeek.value = String(current);
-        const seekPct = duration > 0 ? Math.min(100, Math.max(0, (current / duration) * 100)) : 0;
-        sliceVideoSeek.style.setProperty("--seek-progress", `${seekPct}%`);
-    }
-    if (sliceVideoTime) {
-        sliceVideoTime.textContent = `${formatVideoTime(current)} / ${formatVideoTime(duration)}`;
-    }
+    _syncVideoSeek(sliceVideoSeek, current, duration);
+    _syncVideoSeek(sliceVideoModalSeek, current, duration);
+
+    const timeText = `${formatVideoTime(current)} / ${formatVideoTime(duration)}`;
+    if (sliceVideoTime) sliceVideoTime.textContent = timeText;
+    if (sliceVideoModalTime) sliceVideoModalTime.textContent = timeText;
 
     if (sliceVideoCache) {
         const lastIndex = sliceVideoCache.recons.length - 1;
         const visibleIndex = Math.min(lastIndex, Math.max(0, Math.round(sliceVideoPosition)));
-        sliceVideoCounter.textContent = `${visibleIndex} / ${lastIndex}`;
+        const counterText = `${visibleIndex} / ${lastIndex}`;
+        if (sliceVideoCounter) sliceVideoCounter.textContent = counterText;
+        if (sliceVideoModalCounter) sliceVideoModalCounter.textContent = counterText;
         setReelProgress(lastIndex ? sliceVideoPosition / lastIndex : 0);
     } else {
-        sliceVideoCounter.textContent = "—";
+        if (sliceVideoCounter) sliceVideoCounter.textContent = "—";
+        if (sliceVideoModalCounter) sliceVideoModalCounter.textContent = "—";
         setReelProgress(0);
     }
 }
@@ -101,10 +126,22 @@ function updateVideoControlState() {
     sliceVideoReel.classList.toggle("is-playing", sliceVideoPlaying);
     sliceVideoReel.classList.toggle("is-paused", sliceVideoPaused && !sliceVideoPlaying);
 
-    if (btnPlaySliceVideo) btnPlaySliceVideo.disabled = sliceVideoPreparing || sliceVideoPlaying;
-    if (btnPauseSliceVideo) btnPauseSliceVideo.disabled = !sliceVideoPlaying;
-    if (btnStopSliceVideo) btnStopSliceVideo.disabled = !sliceVideoSessionActive;
-    if (sliceVideoSeek) sliceVideoSeek.disabled = !sliceVideoCache || sliceVideoPreparing;
+    const canPlay = !sliceVideoPreparing && !sliceVideoPlaying;
+    const canPause = sliceVideoPlaying;
+    const canStop = sliceVideoSessionActive || sliceVideoPreparing;
+    const canSeek = Boolean(sliceVideoCache) && !sliceVideoPreparing;
+    const canEnlarge = Boolean(sliceVideoCache) && !sliceVideoPreparing;
+
+    if (btnPlaySliceVideo) btnPlaySliceVideo.disabled = !canPlay;
+    if (btnPauseSliceVideo) btnPauseSliceVideo.disabled = !canPause;
+    if (btnStopSliceVideo) btnStopSliceVideo.disabled = !canStop;
+    if (sliceVideoSeek) sliceVideoSeek.disabled = !canSeek;
+    if (btnOpenSliceVideoModal) btnOpenSliceVideoModal.disabled = !canEnlarge;
+
+    if (btnPlaySliceVideoModal) btnPlaySliceVideoModal.disabled = !canPlay || !sliceVideoCache;
+    if (btnPauseSliceVideoModal) btnPauseSliceVideoModal.disabled = !canPause;
+    if (btnStopSliceVideoModal) btnStopSliceVideoModal.disabled = !canStop;
+    if (sliceVideoModalSeek) sliceVideoModalSeek.disabled = !canSeek;
 }
 
 function lockVideoExternalControls() {
@@ -114,6 +151,12 @@ function lockVideoExternalControls() {
         "btnPauseSliceVideo",
         "btnStopSliceVideo",
         "sliceVideoSeek",
+        "btnOpenSliceVideoModal",
+        "btnPlaySliceVideoModal",
+        "btnPauseSliceVideoModal",
+        "btnStopSliceVideoModal",
+        "sliceVideoModalSeek",
+        "sliceVideoModalClose",
         "comparisonSlider",
     ]);
 
@@ -220,6 +263,40 @@ function drawCanvasBlend(canvas, fromCanvas, toCanvas, fraction) {
     }
 }
 
+function isSliceVideoReady() {
+    return Boolean(sliceVideoCache && sliceVideoCache.recons && sliceVideoCache.recons.length);
+}
+
+function syncSliceVideoModalFrame() {
+    if (!sliceVideoModal || !sliceVideoModal.classList.contains("is-open") || !sliceVideoModalCanvas || !canvasRecon) return;
+    if (!canvasRecon.width || !canvasRecon.height) return;
+
+    if (sliceVideoModalCanvas.width !== canvasRecon.width) sliceVideoModalCanvas.width = canvasRecon.width;
+    if (sliceVideoModalCanvas.height !== canvasRecon.height) sliceVideoModalCanvas.height = canvasRecon.height;
+    const ctx = sliceVideoModalCanvas.getContext("2d");
+    ctx.imageSmoothingEnabled = false;
+    ctx.clearRect(0, 0, sliceVideoModalCanvas.width, sliceVideoModalCanvas.height);
+    ctx.drawImage(canvasRecon, 0, 0);
+}
+
+function openSliceVideoModal() {
+    if (!isSliceVideoReady() || !sliceVideoModal) return;
+    syncSliceVideoModalFrame();
+    updateVideoTimeline();
+    updateVideoControlState();
+    sliceVideoModal.classList.add("is-open");
+    sliceVideoModal.setAttribute("aria-hidden", "false");
+    // Copy once more after the modal becomes visible so the first frame is
+    // guaranteed to be painted even in browsers that defer hidden canvases.
+    syncSliceVideoModalFrame();
+}
+
+function closeSliceVideoModal() {
+    if (!sliceVideoModal) return;
+    sliceVideoModal.classList.remove("is-open");
+    sliceVideoModal.setAttribute("aria-hidden", "true");
+}
+
 function applySliceVideoMetadata(index, force = false) {
     if (!sliceVideoCache) return;
     const cache = sliceVideoCache;
@@ -276,6 +353,7 @@ function drawSliceVideoPosition(position, forceMetadata = false) {
     drawCanvasBlend(canvasRecon, pair.reconFrom, pair.reconTo, fraction);
     drawCanvasBlend(canvasError, pair.errorFrom, pair.errorTo, fraction);
     drawCanvasBlend(canvasOriginal, pair.refFrom, pair.refTo, fraction);
+    syncSliceVideoModalFrame();
 
     emptyRecon.style.display = "none";
     emptyError.style.display = "none";
@@ -369,6 +447,7 @@ function releaseSliceVideoSession({ resetToStart = true, preserveStatus = false 
     sliceVideoPaused = false;
     sliceVideoScrubbing = false;
     sliceVideoResumeAfterScrub = false;
+    sliceVideoScrubSource = null;
 
     if (resetToStart && sliceVideoCache) {
         clearSliceVideoPairCache();
@@ -389,14 +468,17 @@ function releaseSliceVideoSession({ resetToStart = true, preserveStatus = false 
     sliceVideoShownIndex = -1;
     clearSliceVideoPairCache();
 
-    if (sliceVideoSeek) {
-        sliceVideoSeek.value = "0";
-        sliceVideoSeek.max = "0";
-        sliceVideoSeek.disabled = true;
-        sliceVideoSeek.style.setProperty("--seek-progress", "0%");
-    }
+    [sliceVideoSeek, sliceVideoModalSeek].forEach((seek) => {
+        if (!seek) return;
+        seek.value = "0";
+        seek.max = "0";
+        seek.disabled = true;
+        seek.style.setProperty("--seek-progress", "0%");
+    });
     if (sliceVideoTime) sliceVideoTime.textContent = "0:00.0 / 0:00.0";
+    if (sliceVideoModalTime) sliceVideoModalTime.textContent = "0:00.0 / 0:00.0";
     if (sliceVideoCounter) sliceVideoCounter.textContent = "—";
+    if (sliceVideoModalCounter) sliceVideoModalCounter.textContent = "—";
     if (sliceVideoFill) sliceVideoFill.style.width = "0%";
     updateVideoControlState();
 }
@@ -527,29 +609,42 @@ btnPlaySliceVideo.addEventListener("click", playSliceVideo);
 btnPauseSliceVideo.addEventListener("click", () => pauseSliceVideo(false));
 btnStopSliceVideo.addEventListener("click", stopSliceVideo);
 
-sliceVideoSeek.addEventListener("pointerdown", () => {
+if (btnOpenSliceVideoModal) btnOpenSliceVideoModal.addEventListener("click", openSliceVideoModal);
+if (sliceVideoModalBackdrop) sliceVideoModalBackdrop.addEventListener("click", closeSliceVideoModal);
+if (sliceVideoModalClose) sliceVideoModalClose.addEventListener("click", closeSliceVideoModal);
+if (btnPlaySliceVideoModal) btnPlaySliceVideoModal.addEventListener("click", playSliceVideo);
+if (btnPauseSliceVideoModal) btnPauseSliceVideoModal.addEventListener("click", () => pauseSliceVideo(false));
+if (btnStopSliceVideoModal) btnStopSliceVideoModal.addEventListener("click", stopSliceVideo);
+
+document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && sliceVideoModal && sliceVideoModal.classList.contains("is-open")) {
+        closeSliceVideoModal();
+    }
+});
+
+function beginSliceVideoScrub(seekEl) {
     if (!sliceVideoCache) return;
     sliceVideoScrubbing = true;
+    sliceVideoScrubSource = seekEl;
     sliceVideoResumeAfterScrub = sliceVideoPlaying;
     if (sliceVideoPlaying) pauseSliceVideo(true);
-});
+}
 
-sliceVideoSeek.addEventListener("input", () => {
+function inputSliceVideoScrub(seekEl) {
     if (!sliceVideoCache) return;
-    if (!sliceVideoScrubbing) {
-        sliceVideoScrubbing = true;
-        sliceVideoResumeAfterScrub = sliceVideoPlaying;
-        if (sliceVideoPlaying) pauseSliceVideo(true);
-    }
-    seekSliceVideoToSeconds(parseFloat(sliceVideoSeek.value));
-    setSliceVideoStatus(`seeking — ${sliceVideoTime.textContent.split(" / ")[0]}`);
-});
+    if (!sliceVideoScrubbing || sliceVideoScrubSource !== seekEl) beginSliceVideoScrub(seekEl);
+    seekSliceVideoToSeconds(parseFloat(seekEl.value));
+    const currentText = (sliceVideoModalTime || sliceVideoTime).textContent.split(" / ")[0];
+    setSliceVideoStatus(`seeking — ${currentText}`);
+}
 
-function finishSliceVideoScrub() {
+function finishSliceVideoScrub(seekEl) {
     if (!sliceVideoScrubbing) return;
+    if (sliceVideoScrubSource && seekEl && sliceVideoScrubSource !== seekEl) return;
     const shouldResume = sliceVideoResumeAfterScrub;
     sliceVideoScrubbing = false;
     sliceVideoResumeAfterScrub = false;
+    sliceVideoScrubSource = null;
     updateVideoTimeline();
 
     if (shouldResume) {
@@ -562,9 +657,14 @@ function finishSliceVideoScrub() {
     }
 }
 
-sliceVideoSeek.addEventListener("change", finishSliceVideoScrub);
-sliceVideoSeek.addEventListener("pointerup", finishSliceVideoScrub);
-sliceVideoSeek.addEventListener("pointercancel", finishSliceVideoScrub);
+[sliceVideoSeek, sliceVideoModalSeek].forEach((seekEl) => {
+    if (!seekEl) return;
+    seekEl.addEventListener("pointerdown", () => beginSliceVideoScrub(seekEl));
+    seekEl.addEventListener("input", () => inputSliceVideoScrub(seekEl));
+    seekEl.addEventListener("change", () => finishSliceVideoScrub(seekEl));
+    seekEl.addEventListener("pointerup", () => finishSliceVideoScrub(seekEl));
+    seekEl.addEventListener("pointercancel", () => finishSliceVideoScrub(seekEl));
+});
 
 updateVideoTimeline();
 updateVideoControlState();

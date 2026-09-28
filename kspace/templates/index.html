@@ -707,6 +707,24 @@ input[type="range"].slider::-moz-range-thumb{ width: 12px; height: 12px; border-
   font-size: 9.5px;
   color: var(--text-2);
 }
+.reel__header-actions{ display: flex; align-items: center; gap: 6px; flex: none; }
+.reel__expand{
+  min-height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 4px 7px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--text-2);
+  font-size: 9.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.reel__expand:hover:not(:disabled){ border-color: var(--accent-line); background: var(--accent-wash); color: var(--accent); }
+.reel__expand:disabled{ opacity: .4; cursor: default; }
 .reel__track{
   height: 3px;
   margin-top: 9px;
@@ -1332,6 +1350,42 @@ input[type="range"].slider::-moz-range-thumb{ width: 12px; height: 12px; border-
 }
 .modal__chart-note{ margin: 10px 0 0; font-size: 11px; line-height: 1.5; color: var(--text-3); }
 
+/* Enlarged reconstructed-slice video */
+.modal__content--video{ max-width: 920px; }
+.video-modal__heading{ flex: 1; min-width: 0; }
+.video-modal__heading .modal__title{ margin-bottom: 3px; }
+.video-modal__status{
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-3);
+}
+.video-modal__body{ padding: 20px; }
+.video-modal__canvas-wrap{
+  width: min(100%, 760px);
+  margin: 0 auto;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  overflow: hidden;
+  background: #05080C;
+  cursor: default;
+}
+.video-modal__canvas-wrap canvas{
+  display: block;
+  width: auto;
+  max-width: 100%;
+  max-height: 62vh;
+  aspect-ratio: auto;
+  image-rendering: pixelated;
+}
+.video-modal__transport{ width: min(100%, 760px); margin: 14px auto 0; }
+.video-modal__controls{ margin-top: 10px; }
+.video-modal__time-row{ margin-top: 2px; }
+.video-modal__seek{ height: 22px; }
+
 /* ============================================================
    Responsive
    ============================================================ */
@@ -1379,7 +1433,7 @@ input[type="range"].slider::-moz-range-thumb{ width: 12px; height: 12px; border-
 
 </style>
 <link rel="stylesheet" href="/static/css/frequency.css?v=2">
-<link rel="stylesheet" href="/static/css/workspace.css?v=10">
+<link rel="stylesheet" href="/static/css/workspace.css?v=11">
 <link rel="stylesheet" href="/static/css/reports.css?v=2">
 <link rel="stylesheet" href="/static/css/landing.css?v=2">
 </head>
@@ -1496,7 +1550,7 @@ input[type="range"].slider::-moz-range-thumb{ width: 12px; height: 12px; border-
         <button type="button" class="landing-feature" data-enter-workspace="noise">
           <span class="landing-feature__num">02</span>
           <span class="landing-feature__icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 12h2l2-7 4 14 3-10 2 6h3"/><path d="M3 4v16h18"/></svg></span>
-          <strong>Noise &amp; Audio Analysis</strong>
+          <strong>Audio Analysis</strong>
           <span>Sonify source, k-space and reconstruction data to compare structures through an additional analysis channel.</span>
           <em>Open Analysis <b>→</b></em>
         </button>
@@ -1588,9 +1642,10 @@ input[type="range"].slider::-moz-range-thumb{ width: 12px; height: 12px; border-
       <section class="panel">
         <h2 class="panel__eyebrow"><span class="panel__num">01</span>Input</h2>
 
-        <div class="segmented" role="radiogroup" aria-label="input source" style="--cols:2; margin-bottom: 14px;">
+        <div class="segmented" role="radiogroup" aria-label="input source" style="--cols:3; margin-bottom: 14px;">
           <button type="button" class="segmented__option is-active" data-source="upload" role="radio" aria-checked="true">Upload photo</button>
-          <button type="button" class="segmented__option" data-source="dataset" role="radio" aria-checked="false">Select dataset</button>
+          <button type="button" class="segmented__option" data-source="h5" role="radio" aria-checked="false">Upload H5</button>
+          <button type="button" class="segmented__option" data-source="dataset" role="radio" aria-checked="false">Dataset library</button>
         </div>
 
         <div id="uploadSourceBlock">
@@ -1605,8 +1660,20 @@ input[type="range"].slider::-moz-range-thumb{ width: 12px; height: 12px; border-
           <input type="file" id="fileInput" accept="image/*" hidden>
         </div>
 
+        <div id="h5UploadSourceBlock" style="display: none; margin-bottom: 14px;">
+          <label class="dropzone" id="h5Dropzone" for="h5FileInput" tabindex="0">
+            <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+              <path d="M12 16V4M12 4L7 9M12 4L17 9" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+            </svg>
+            <span class="dropzone__label" id="h5DropzoneLabel">Upload an H5 MRI dataset</span>
+            <span class="dropzone__hint" id="h5DropzoneHint">.h5 / .hdf5 · requires a complex-valued “kspace” dataset</span>
+          </label>
+          <input type="file" id="h5FileInput" accept=".h5,.hdf5,application/x-hdf5" hidden>
+        </div>
+
         <div id="datasetSourceBlock" style="display: none;">
-          <div class="field">
+          <div class="field" id="datasetPickerField">
             <span class="field__label">Dataset scan</span>
             <select id="datasetSelect" class="slider">
               <option value="">loading datasets…</option>
@@ -1631,7 +1698,13 @@ input[type="range"].slider::-moz-range-thumb{ width: 12px; height: 12px; border-
                 <span class="reel__label">Reconstructed slice video</span>
                 <span class="reel__status" id="sliceVideoStatus">press play to reconstruct every slice</span>
               </div>
-              <span class="reel__counter" id="sliceVideoCounter">—</span>
+              <div class="reel__header-actions">
+                <span class="reel__counter" id="sliceVideoCounter">—</span>
+                <button type="button" class="reel__expand" id="btnOpenSliceVideoModal" aria-label="enlarge reconstructed slice video" title="Click to enlarge" disabled>
+                  <span aria-hidden="true">⤢</span>
+                  <span>Enlarge</span>
+                </button>
+              </div>
             </div>
 
             <div class="reel__track" id="sliceVideoTrack" aria-hidden="true">
@@ -1741,9 +1814,6 @@ input[type="range"].slider::-moz-range-thumb{ width: 12px; height: 12px; border-
 
         <p class="callout callout--danger" id="noiseStatus">⚠ Noise controls are NOT active: static/js/controls.js is outdated, cached, or failed to load. Copy the new controls.js, restart the server, then reload (Ctrl+Shift+R).</p>
 
-        <div class="paint-editor__actions">
-          <button type="button" class="btn btn--small" id="btnNoiseReroll">New noise sample</button>
-        </div>
       </section>
 
       <section class="panel panel--actions">
@@ -2056,6 +2126,46 @@ input[type="range"].slider::-moz-range-thumb{ width: 12px; height: 12px; border-
     </div>
   </div>
 
+<div class="modal" id="sliceVideoModal" aria-hidden="true">
+  <div class="modal__backdrop" id="sliceVideoModalBackdrop"></div>
+  <div class="modal__content modal__content--video" role="dialog" aria-modal="true" aria-labelledby="sliceVideoModalTitle">
+    <div class="modal__header">
+      <div class="video-modal__heading">
+        <h3 class="modal__title" id="sliceVideoModalTitle">Reconstructed slice video</h3>
+        <span class="video-modal__status" id="sliceVideoModalStatus">—</span>
+      </div>
+      <span class="reel__counter" id="sliceVideoModalCounter">—</span>
+      <button type="button" class="modal__close" id="sliceVideoModalClose" aria-label="close">×</button>
+    </div>
+    <div class="video-modal__body">
+      <button type="button" class="video-modal__canvas-wrap" id="sliceVideoModalCanvasWrap" aria-label="reconstructed slice video enlarged view">
+        <canvas id="sliceVideoModalCanvas" width="256" height="256"></canvas>
+      </button>
+      <div class="video-modal__transport">
+        <input type="range" class="reel__seek video-modal__seek" id="sliceVideoModalSeek" min="0" max="0" step="0.01" value="0" disabled aria-label="enlarged reconstruction video timeline">
+        <div class="reel__time-row video-modal__time-row">
+          <span class="reel__time" id="sliceVideoModalTime">0:00.0 / 0:00.0</span>
+          <span class="reel__frame-rate">0.45 s / slice</span>
+        </div>
+        <div class="reel__controls video-modal__controls" role="group" aria-label="enlarged reconstruction video playback controls">
+          <button type="button" class="reel__control reel__control--primary" id="btnPlaySliceVideoModal" aria-label="play enlarged reconstructed slice video" title="Play">
+            <svg class="reel__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"></path></svg>
+            <span>Play</span>
+          </button>
+          <button type="button" class="reel__control" id="btnPauseSliceVideoModal" aria-label="pause enlarged reconstructed slice video" title="Pause" disabled>
+            <svg class="reel__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h4v14H7zM13 5h4v14h-4z"></path></svg>
+            <span>Pause</span>
+          </button>
+          <button type="button" class="reel__control" id="btnStopSliceVideoModal" aria-label="stop enlarged reconstructed slice video" title="Stop" disabled>
+            <svg class="reel__icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12"></rect></svg>
+            <span>Stop</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="modal" id="imageModal" aria-hidden="true">
   <div class="modal__backdrop" id="modalBackdrop"></div>
   <div class="modal__content" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
@@ -2353,12 +2463,12 @@ viewerNextBtn.addEventListener("click", () => {
 })();
 
 </script>
-<script src="../static/js/controls.js?v=frequency1"></script>
+<script src="../static/js/controls.js?v=noise-button-remove2"></script>
 <script src="../static/js/paint.js?v=noise2"></script>
 <script src="../static/js/autoMask.js?v=target-preview-fix1"></script>
-<script src="../static/js/main.js?v=upload-size-fix1"></script>
+<script src="../static/js/main.js?v=h5-preview-422-fix"></script>
 <script src="../static/js/frequency.js?v=2"></script>
-<script src="../static/js/sliceVideo.js?v=media-controls1"></script>
+<script src="../static/js/sliceVideo.js?v=video-enlarge2"></script>
 <script>
 /*
  * K-SPACE sonification
@@ -2808,6 +2918,11 @@ viewerNextBtn.addEventListener("click", () => {
         .sl-btn svg{width:14px;height:14px;fill:currentColor;flex:none}
         .sl-btn--play{border-color:transparent;background:linear-gradient(180deg,var(--grad-a1,#34E0CB),var(--grad-a2,#14B8A6));color:var(--accent-ink,#04231F);box-shadow:0 6px 18px var(--accent-btn-shadow,rgba(20,184,166,.28))}
         .sl-btn--play:hover{background:linear-gradient(180deg,var(--grad-a1h,#5EEAD4),var(--grad-a2h,#19C9B3));border-color:transparent}
+        .sl-btn--sound2{border-color:var(--amber-line,rgba(245,165,36,.58));background:var(--amber-wash,rgba(245,165,36,.12));color:var(--amber,#F5A524)}
+        .sl-btn--sound2:hover{border-color:var(--amber,#F5A524);background:rgba(245,165,36,.17)}
+        .sl-btn--pause{min-width:108px}
+        .sl-btn--pause.is-paused{border-color:rgba(56,189,248,.55);background:rgba(56,189,248,.11);color:var(--cyan,#38BDF8)}
+        .sl-btn:disabled{opacity:.42;cursor:not-allowed;transform:none;box-shadow:none}
         .sl-btn--cmp{border-color:var(--amber-line,rgba(245,165,36,.5));background:var(--amber-wash,rgba(245,165,36,.1));color:var(--amber,#F5A524)}
         .sl-btn--cmp:hover{border-color:var(--amber,#F5A524)}
         .sl-btn--small{height:32px;padding:0 13px;font-size:12px;font-weight:500;border-radius:8px}
@@ -2842,6 +2957,7 @@ viewerNextBtn.addEventListener("click", () => {
     }
 
     const ICON_PLAY = '<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>';
+    const ICON_PAUSE = '<svg viewBox="0 0 24 24"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>';
     const ICON_STOP = '<svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1.5"/></svg>';
     const ICON_CMP  = '<svg viewBox="0 0 24 24"><path d="M3 12h4l3-8 4 16 3-8h4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
@@ -2882,6 +2998,8 @@ viewerNextBtn.addEventListener("click", () => {
             <div class="sl-transport">
               <div class="sl-buttons">
                 <button type="button" class="sl-btn sl-btn--play" id="sonPlay1">${ICON_PLAY}<span>Play sound 1</span></button>
+                <button type="button" class="sl-btn sl-btn--sound2" id="sonPlay2">${ICON_PLAY}<span>Play sound 2</span></button>
+                <button type="button" class="sl-btn sl-btn--pause" id="sonPause" disabled>${ICON_PAUSE}<span>Pause</span></button>
                 <button type="button" class="sl-btn sl-btn--cmp" id="sonCompare">${ICON_CMP}<span>Compare 1 vs 2</span></button>
                 <button type="button" class="sl-btn" id="sonStop">${ICON_STOP}<span>Stop</span></button>
               </div>
@@ -3371,12 +3489,40 @@ viewerNextBtn.addEventListener("click", () => {
         return audio;
     }
 
+    function setPauseUi(paused, enabled) {
+        const btn = $("sonPause");
+        if (!btn) return;
+        btn.disabled = !enabled;
+        btn.classList.toggle("is-paused", !!paused);
+        const label = btn.querySelector("span");
+        if (label) label.textContent = paused ? "Resume" : "Pause";
+        btn.innerHTML = `${paused ? ICON_PLAY : ICON_PAUSE}<span>${paused ? "Resume" : "Pause"}</span>`;
+    }
+
+    async function togglePause() {
+        if (!playing || !audio) return setStatus("Play a sound first, then pause it.");
+        if (playing.paused) {
+            try { await audio.resume(); } catch (e) { return setStatus("Could not resume audio in this browser."); }
+            if (!playing) return;
+            playing.paused = false;
+            setPauseUi(false, true);
+            setStatus(`Resumed ${playing.label || "audio"}.`);
+        } else {
+            try { await audio.suspend(); } catch (e) { return setStatus("Could not pause audio in this browser."); }
+            if (!playing) return;
+            playing.paused = true;
+            setPauseUi(true, true);
+            setStatus(`Paused ${playing.label || "audio"}. Press Resume to continue from the same position.`);
+        }
+    }
+
     function stopPlayback() {
         if (playing) {
             const p = playing;
             playing = null;
             p.stop();
         }
+        setPauseUi(false, false);
         Object.keys(HEAD_CHART).forEach((id) => movePlayhead(id, null));
         $("sonSwitch").classList.remove("is-visible");
     }
@@ -3396,8 +3542,9 @@ viewerNextBtn.addEventListener("click", () => {
         const key1 = sel1.value;
         const key2 = sel2.value;
         const compare = kind === "compare";
-        if (!key1) return setStatus("Choose a picture for sound 1.");
-        if (compare && !key2) return setStatus("Choose a sound 2 to compare with.");
+        const playSecond = kind === "single2";
+        if (!playSecond && !key1) return setStatus("Choose a picture for sound 1.");
+        if ((compare || playSecond) && !key2) return setStatus("Choose a picture for sound 2.");
 
         const ctx = getAudio();
         if (!ctx) return setStatus("This browser has no Web Audio support.");
@@ -3405,15 +3552,19 @@ viewerNextBtn.addEventListener("click", () => {
         setStatus("Preparing sound…");
         await sleep(20);   // let the status paint before the (short) synthesis work
 
-        const p1 = await prepare(key1, 1);
-        if (!p1 || p1.missing) return setStatus("Sound 1 isn't ready yet: run that step in the console first.");
+        let p1 = S.p1;
         let p2 = S.p2;
-        if (compare) {
+        if (!playSecond) {
+            p1 = await prepare(key1, 1);
+            if (!p1 || p1.missing) return setStatus("Sound 1 isn't ready yet: run that step in the console first.");
+            S.p1 = p1;
+        }
+        if (compare || playSecond) {
             p2 = await prepare(key2, 2);
             if (!p2 || p2.missing) return setStatus("Sound 2 isn't ready yet: run that step in the console first.");
+            S.p2 = p2;
         }
-        S.p1 = p1;
-        if (compare) S.p2 = p2;
+        const primary = playSecond ? p2 : p1;
         S.diff = null;
 
         const dur = parseInt(durSlider.value, 10);
@@ -3442,10 +3593,10 @@ viewerNextBtn.addEventListener("click", () => {
         };
 
         if (!compare) {
-            channelsForWav = [p1.audio];
-            name = `sound1_${p1.label}`;
-            bufferSource([p1.audio]).connect(master);
-            segments = [{ from: 0, to: dur, id: "sonHead1" }];
+            channelsForWav = [primary.audio];
+            name = `${playSecond ? "sound2" : "sound1"}_${primary.label}`;
+            bufferSource([primary.audio]).connect(master);
+            segments = [{ from: 0, to: dur, id: playSecond ? "sonHead2" : "sonHead1" }];
         } else if (mode === "then") {
             const gap = new Float32Array(Math.round(GAP_SECONDS * SAMPLE_RATE));
             const joined = new Float32Array(p1.audio.length + gap.length + p2.audio.length);
@@ -3522,6 +3673,8 @@ viewerNextBtn.addEventListener("click", () => {
         };
 
         const handle = {
+            paused: false,
+            label: compare ? "comparison" : `sound ${playSecond ? "2" : "1"}`,
             stop() {
                 cancelAnimationFrame(raf);
                 sources.forEach((s) => { try { s.onended = null; s.stop(); } catch (e) { /* already stopped */ } });
@@ -3532,11 +3685,13 @@ viewerNextBtn.addEventListener("click", () => {
             setLive,
         };
         playing = handle;
+        setPauseUi(false, true);
 
         // end of (non-looping) playback
         sources[0].onended = () => {
             if (playing !== handle) return;
             playing = null;
+            setPauseUi(false, false);
             cancelAnimationFrame(raf);
             Object.keys(HEAD_CHART).forEach((id) => movePlayhead(id, null));
             $("sonSwitch").classList.remove("is-visible");
@@ -3553,7 +3708,7 @@ viewerNextBtn.addEventListener("click", () => {
             $("sonSwitch").classList.add("is-visible");
             setStatus("Looping. Press 1 or 2 (keys or buttons) to jump between the two sounds at the same moment.");
         } else if (!compare) {
-            setStatus(`Playing sound 1: ${p1.label}`);
+            setStatus(`Playing sound ${playSecond ? "2" : "1"}: ${primary.label}`);
         } else if (mode === "stereo") {
             setStatus(`Playing 1 in the left ear and 2 in the right (use headphones): ${p1.label} | ${p2.label}`);
         } else if (mode === "then") {
@@ -3603,6 +3758,7 @@ viewerNextBtn.addEventListener("click", () => {
         }
         injectStyles();
         buildLab(host);
+        setPauseUi(false, false);
 
         sel1 = $("sonSel1");
         sel2 = $("sonSel2");
@@ -3639,6 +3795,8 @@ viewerNextBtn.addEventListener("click", () => {
         });
 
         $("sonPlay1").addEventListener("click", () => start("single"));
+        $("sonPlay2").addEventListener("click", () => start("single2"));
+        $("sonPause").addEventListener("click", togglePause);
         $("sonCompare").addEventListener("click", () => start("compare"));
         $("sonStop").addEventListener("click", () => { stopPlayback(); if (stale) scheduleRefresh(100); });
         $("sonSnap").addEventListener("click", takeSnapshot);
@@ -3701,7 +3859,7 @@ viewerNextBtn.addEventListener("click", () => {
 })(typeof window !== "undefined" ? window : globalThis);
 
 </script>
-<script src="../static/js/modal.js?v=noise2"></script>
+<script src="../static/js/modal.js?v=video-enlarge2"></script>
 <script src="../static/js/workspaceLayout.js?v=8"></script>
 <script src="../static/js/reports.js?v=3"></script>
 <script src="../static/js/landing.js?v=2"></script>

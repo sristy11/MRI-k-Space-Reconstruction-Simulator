@@ -233,18 +233,35 @@ def _acquire(kspace, mask, payload: MaskRequest):
 async def preview_dataset_slice(payload: DatasetPreviewRequest):
     """Load a dataset slice's ground-truth reconstruction, for Canvas A —
     the equivalent of the instant client-side preview an uploaded photo gets."""
-    path = resolve_dataset_path(payload.dataset) if payload.dataset else None
-    if path is None:
+    if not payload.dataset.strip():
         raise HTTPException(status_code=400, detail="dataset is required")
 
     try:
+        path = resolve_dataset_path(payload.dataset)
         num_slices = get_num_slices(path)
-    except Exception:
-        raise HTTPException(status_code=404, detail=f"Could not read dataset '{payload.dataset}'")
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Could not read dataset '{payload.dataset}': {exc}",
+        ) from exc
 
     slice_index = payload.slice_index if payload.slice_index is not None else num_slices // 2
-    kspace = load_h5_slice(str(path), slice_index)
-    reference_image = np.fft.fftshift(reconstruct(kspace, shifted=True))
+    if slice_index < 0 or slice_index >= num_slices:
+        raise HTTPException(
+            status_code=400,
+            detail=f"slice_index must be between 0 and {num_slices - 1}",
+        )
+
+    try:
+        kspace = load_h5_slice(str(path), slice_index)
+        reference_image = np.fft.fftshift(reconstruct(kspace, shifted=True))
+    except Exception as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Could not load slice {slice_index} from '{payload.dataset}': {exc}",
+        ) from exc
 
     return {
         "reference": _normalize_for_display(reference_image).tolist(),
