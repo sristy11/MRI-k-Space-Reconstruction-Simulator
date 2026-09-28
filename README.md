@@ -1,4 +1,4 @@
-# MRIK Space
+# MRI K-Space Analyzer
 
 **An interactive playground for MRI k-space: sample it, undersample it, reconstruct it, measure the damage, and even hear it.**
 
