@@ -86,7 +86,7 @@ Full k-space sounds coherent; undersampled k-space sounds like gaps and static; 
 ## Tech stack
 
 - **Backend**: Python, NumPy (FFT, sampling, metrics, reconstruction), FastAPI
-- **Frontend**: HTML5 Canvas, vanilla JavaScript, Web Audio API
+- **Frontend**: HTML5, CSS, JavaScript, Web Audio API
 
 ## Course context
 
