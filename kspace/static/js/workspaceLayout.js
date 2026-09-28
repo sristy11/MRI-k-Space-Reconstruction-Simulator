@@ -264,9 +264,9 @@
 
     const tabSpecs = [
       ["pipeline", "01", "Studio"],
-      ["noise", "02", "Noise & audio"],
+      ["noise", "02", "Audio analysis"],
       ["target", "03", "Target error"],
-      ["frequency", "04", "MRI frequency"],
+      ["frequency", "04", "MRI frequency comparison"],
       ["reports", "05", "Report compare"]
     ];
     tabSpecs.forEach(([page, index, label]) => {
